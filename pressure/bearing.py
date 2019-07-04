@@ -42,6 +42,60 @@ def chamfer_positive_friction(qc, depth):
     return qc
 
 
+def sign_tipping_idx(arr):
+    """
+    Find the first index where a positive number becomes negative.
+
+    Parameters
+    ----------
+    arr : array
+
+    Returns
+    -------
+    out : array
+
+    """
+    sign = np.sign(arr)
+    return np.where((np.roll(sign, 1) - sign) != 0)[0]
+
+
+def positive_friction(df, ppni, relative_dz, circum, alpha_s=0.01, indexes=None, return_qc=False):
+    """
+
+    :param df:
+    :param ppni: (int) Pile base level index.
+    :param relative_dz: (array) (setting pile - setting soil)
+    :param circum: (flt) Circumference shaft.
+    :param alpha_s: (flt) factor
+    :param indexes: (array) tipping points from positive to negative and vice versa.
+    :param return_qc: (bool) Return the chamfered qc values used in the calculation.
+    :return: (array)
+    """
+
+    if indexes is None:
+        indexes = sign_tipping_idx(relative_dz)
+    l = df.l.values[:ppni]
+    qc = chamfer_positive_friction(np.array(df.qc.values[:ppni]), l)
+
+    for i in range(len(indexes) - 1):
+
+        i_start = indexes[i]
+        i_stop = indexes[i + 1]
+
+        i_middle = (i_stop - i_start) // 2 + i_start
+
+        if relative_dz[i_middle] < 0:
+            qc[i_start: i_stop + 1] = 0
+
+    # axial force
+    dN = circum * alpha_s * qc
+    pf = -dN[:-1] * np.diff(l)
+    if return_qc:
+        return pf, qc
+    else:
+        return pf
+
+
 def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, A, return_q_components=False):
     """
 
