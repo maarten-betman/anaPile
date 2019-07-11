@@ -1,6 +1,7 @@
 from pygef import ParseGEF
 from unittest import TestCase
-from pressure import bearing, settlement
+from pressure import bearing
+from settlement import soil
 import utils
 from functools import partial
 import numpy as np
@@ -42,7 +43,7 @@ class Pressure(TestCase):
         self.assertEqual(bearing.sign_tipping_idx(np.array([1., 0.5, -0.5, -1])), 2)
 
     def test_settlement(self):
-        s = settlement.settlement_over_depth(
+        s = soil.settlement_over_depth(
             cs=self.soil_prop["C's"].values,
             cp=self.soil_prop["C'p"].values,
             depth=self.soil_prop['depth'].values,
