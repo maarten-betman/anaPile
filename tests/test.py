@@ -1,15 +1,17 @@
 from pygef import ParseGEF
 from unittest import TestCase
-from pressure import bearing
+from pressure import bearing, settlement
 import utils
 from functools import partial
 import numpy as np
+import pandas as pd
 
 
 class Pressure(TestCase):
 
     def setUp(self) -> None:
         self.gef = ParseGEF('files/example.gef')
+        self.soil_prop = pd.read_csv('files/soil_prop_example.csv')
 
     def test_pile_tip_resistance(self):
         f = partial(bearing.compute_pile_tip_resistance,
@@ -38,3 +40,12 @@ class Pressure(TestCase):
 
     def test_sing_tipping(self):
         self.assertEqual(bearing.sign_tipping_idx(np.array([1., 0.5, -0.5, -1])), 2)
+
+    def test_settlement(self):
+        s = settlement.settlement_over_depth(
+            cs=self.soil_prop["C's"].values,
+            cp=self.soil_prop["C'p"].values,
+            depth=self.soil_prop['depth'].values,
+            sigma=self.soil_prop["sig'"].values
+        )
+        self.assertGreater((s * 1000)[0], 100)

@@ -1,9 +1,9 @@
 import numpy as np
 
 
-def settlement_over_depth(cs, cp, depth, sigma, pile_tip_level=None, t=10000, p=2., ocr=1.):
+def settlement_over_depth(cs, cp, depth, sigma, t=10000, p=2., ocr=1.):
     """
-    Koppejan settlement calculation.
+    Koppejan settlement calculation. Parameters, p and sigma should be the same units.
 
     Parameters
     ----------
@@ -13,35 +13,25 @@ def settlement_over_depth(cs, cp, depth, sigma, pile_tip_level=None, t=10000, p=
         C'p; primary stiffness over depth.
     depth : array
     sigma : array
-    pile_tip_level : float
-        Depth value of pile tip w/ respect to ground level
+        Grain pressure in [MPa]
     t : int
         Time in days.
     p : float
-        Load in MPa.
+        Load in [MPa].
     ocr : float
         Over consolidation ratio.
 
     Returns
     -------
     settlement : array
-        Cumulative settlement over depth
+        Cumulative settlement over depth in [m]
     """
-
-    if pile_tip_level is None:
-        pile_tip_level = cs.shape[0]
-
-    # evaluate values ot pile tip level
-    cp = cp[:pile_tip_level]
-    cs = cs[:pile_tip_level]
-
-    # TODO: unit conversion?
-    sigma = sigma[:pile_tip_level] * 1e3
 
     eps = np.nan_to_num(koppejan(cs, cp, sigma, t, p, ocr))
 
-    dh = eps[:pile_tip_level - 1] * np.diff(depth[:pile_tip_level])
-    return np.cumsum(dh[::-1])[::-1]
+    dh = eps[:-1] * np.diff(depth)
+    cum_dh = np.cumsum(dh[::-1])[::-1]
+    return np.append(cum_dh, cum_dh[-1])
 
 
 def koppejan(cs, cp, sigma, t=10000, p=2., ocr=1.):
