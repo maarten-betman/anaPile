@@ -15,11 +15,14 @@ def chamfer_positive_friction(qc, depth):
     qc : array
         Chamfered qc values
     """
+    qc = np.array(qc)
     # number of indexes per meter
     n_per_m = int(1 / (depth[1] - depth[0]))  # 1 / dl
 
     # Max values at 15 MPa.
     qc[qc > 15] = 15
+
+    qc[qc < 2] = 0
 
     # find the indexes where qc > 12
     idx = np.where(np.sign(np.array(qc) - 12) > 0)[0]
@@ -59,41 +62,29 @@ def sign_tipping_idx(arr):
     return np.where((np.roll(sign, 1) - sign) != 0)[0][1]
 
 
-def positive_friction(df, ppni, relative_dz, circum, alpha_s=0.01, indexes=None, return_qc=False):
+def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     """
 
-    :param df:
-    :param ppni: (int) Pile base level index.
-    :param relative_dz: (array) (setting pile - setting soil)
-    :param circum: (flt) Circumference shaft.
-    :param alpha_s: (flt) factor
-    :param indexes: (array) tipping points from positive to negative and vice versa.
-    :param return_qc: (bool) Return the chamfered qc values used in the calculation.
-    :return: (array)
+    Parameters
+    ----------
+    depth : array
+    chamfered_qc : array
+        qc values, where layers are chamfered to 12 MPa and 15 MPa
+    relative_dz : array
+        Settlement pile - settlement soil,
+    circum : float
+        Circumference of the pile.
+    tipping_point_idx : array
+        Indexes of the location where the friction tipping points are.
+    alpha_s : float
+        Alpha s factor
+    Returns
+    -------
+    positive_friction_force : float
     """
-
-    if indexes is None:
-        indexes = sign_tipping_idx(relative_dz)
-    l = df.l.values[:ppni]
-    qc = chamfer_positive_friction(np.array(df.qc.values[:ppni]), l)
-
-    for i in range(len(indexes) - 1):
-
-        i_start = indexes[i]
-        i_stop = indexes[i + 1]
-
-        i_middle = (i_stop - i_start) // 2 + i_start
-
-        if relative_dz[i_middle] < 0:
-            qc[i_start: i_stop + 1] = 0
-
-    # axial force
-    dN = circum * alpha_s * qc
-    pf = -dN[:-1] * np.diff(l)
-    if return_qc:
-        return pf, qc
-    else:
-        return pf
+    shaft_stress = circum * alpha_s * chamfered_qc
+    force = shaft_stress[:-1] * np.diff(depth)
+    return np.append(force, force[-1])
 
 
 def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, A, return_q_components=False):
