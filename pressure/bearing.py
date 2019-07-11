@@ -56,7 +56,7 @@ def sign_tipping_idx(arr):
 
     """
     sign = np.sign(arr)
-    return np.where((np.roll(sign, 1) - sign) != 0)[0]
+    return np.where((np.roll(sign, 1) - sign) != 0)[0][1]
 
 
 def positive_friction(df, ppni, relative_dz, circum, alpha_s=0.01, indexes=None, return_qc=False):

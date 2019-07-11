@@ -3,6 +3,7 @@ from unittest import TestCase
 from pressure import bearing
 import utils
 from functools import partial
+import numpy as np
 
 
 class Pressure(TestCase):
@@ -35,3 +36,5 @@ class Pressure(TestCase):
         self.assertAlmostEqual(qc_2, 21.714000000000002)
         self.assertAlmostEqual(qc_3, 21.2664298245614)
 
+    def test_sing_tipping(self):
+        self.assertEqual(bearing.sign_tipping_idx(np.array([1., 0.5, -0.5, -1])), 2)
