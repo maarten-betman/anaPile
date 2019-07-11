@@ -2,3 +2,4 @@ numpy
 pandas==0.24.2
 git+https://github.com/ritchie46/pygef.git
 matplotlib
+scipy>==1.3

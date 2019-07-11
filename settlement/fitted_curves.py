@@ -46,7 +46,8 @@ sbi_deq = np.array([0.0,
                     22.0,
                     23.0,
                     24.0,
-                    25.0])
+                    25.0,
+                    1000.0 ])
 
 sbi = np.array([0.0,
                 0.1,
@@ -94,7 +95,8 @@ sbi = np.array([0.0,
                 22.0,
                 23.0,
                 24.0,
-                25.0])
+                25.0,
+                1000.])
 
 rb_rb_max_type_1 = np.array([0,
                              0.09,
@@ -128,6 +130,7 @@ rb_rb_max_type_1 = np.array([0,
                              0.973925572,
                              0.987063907,
                              0.999528178,
+                             1,
                              1,
                              1,
                              1,
@@ -190,6 +193,7 @@ rs_rs_max_type_1 = np.array([0,
                              1,
                              1,
                              1,
+                             1,
                              1])
 
 rb_rb_max_type_2 = np.array([0,
@@ -233,6 +237,7 @@ rb_rb_max_type_2 = np.array([0,
                              0.966635469,
                              0.981496657,
                              0.995554135,
+                             1,
                              1,
                              1,
                              1,
@@ -286,6 +291,7 @@ rs_rs_max_type_2 = np.array([0,
                              0.990939764,
                              1,
                              1,
+                             1,
                              1])
 
 rb_rb_max_type_3 = np.array([0,
@@ -329,6 +335,7 @@ rb_rb_max_type_3 = np.array([0,
                              0.94912647,
                              0.968274539,
                              0.986387058,
+                             1,
                              1,
                              1,
                              1,
@@ -382,14 +389,21 @@ rs_rs_max_type_3 = np.array([0,
                              0.990939764,
                              1,
                              1,
+                             1,
                              1])
 
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    plt.plot(rb_rb_max_type_1, -sbi_deq)
-    plt.plot(rb_rb_max_type_2, -sbi_deq)
-    plt.plot(rb_rb_max_type_3, -sbi_deq)
+    plt.figure(figsize=(9, 5)),
+    plt.plot(rb_rb_max_type_1, -sbi_deq, label='type 1')
+    plt.plot(rb_rb_max_type_2, -sbi_deq, label='type 2')
+    plt.plot(rb_rb_max_type_3, -sbi_deq, label='type 3')
+    plt.plot(-rs_rs_max_type_1, -sbi_deq, label='rs; type 1')
+    plt.plot(-rs_rs_max_type_2, -sbi_deq, label='rs; type 2')
+    plt.plot(-rs_rs_max_type_3, -sbi_deq, label='rs; type 3')
+    plt.vlines(0, -25, 0, linestyles='-.')
     plt.xlabel('rb type')
     plt.ylabel('sbi deq')
+    plt.legend()
     plt.show()

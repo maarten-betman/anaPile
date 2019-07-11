@@ -1,7 +1,7 @@
 from pygef import ParseGEF
 from unittest import TestCase
 from pressure import bearing
-from settlement import soil
+import settlement
 import utils
 from functools import partial
 import numpy as np
@@ -43,10 +43,18 @@ class Pressure(TestCase):
         self.assertEqual(bearing.sign_tipping_idx(np.array([1., 0.5, -0.5, -1])), 2)
 
     def test_settlement(self):
-        s = soil.settlement_over_depth(
+        s = settlement.soil.settlement_over_depth(
             cs=self.soil_prop["C's"].values,
             cp=self.soil_prop["C'p"].values,
             depth=self.soil_prop['depth'].values,
             sigma=self.soil_prop["sig'"].values
         )
         self.assertGreater((s * 1000)[0], 100)
+
+    def test_pile_settlement(self):
+        rb = 1000
+        rs = 500
+        sls_f = 700
+        s, rb_ratio, rs_ratio = settlement.pile.pile_settlement(rb, rs, 2, sls_f, 0.3)
+        # sheet found 5.6, we find 5.95. Probably different curves
+        self.assertTrue(5.59 < s < 6)
