@@ -140,20 +140,46 @@ def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     depth : array
     chamfered_qc : array
         qc values, where layers are chamfered to 12 MPa and 15 MPa
-    relative_dz : array
-        Settlement pile - settlement soil,
     circum : float
         Circumference of the pile.
-    tipping_point_idx : array
-        Indexes of the location where the friction tipping points are.
     alpha_s : float
         Alpha s factor
     Returns
     -------
-    positive_friction_force : float
+    friction_forces : array
+        Friction values. Sum for the total friction.
     """
     shaft_stress = circum * alpha_s * chamfered_qc
     force = shaft_stress[:-1] * np.diff(depth)
     return np.append(force, force[-1])
 
 
+def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0):
+    """
+    Only pass masked arrays. You should determine which part of array negative friction occurs.
+
+    Parameters
+    ----------
+    depth : array
+    sig : array
+        Grain pressure.
+    phi : array
+        If delta is not defined, phi will be used to determine delta by delta = phi * 2 / 3
+    delta : array
+        Delta values for friction adhesion.
+    gamma_m : float
+        Reduction factor.
+
+    Returns
+    -------
+    friction_forces : array
+        Friction values. Sum for the total friction.
+    """
+    if delta is None:
+        delta = phi * 2 / 3
+
+    k0_tan_d = (1 - np.sin(phi)) * np.tan(delta)
+    k0_tan_d[k0_tan_d < 0.25] = 0.25
+    h = np.diff(depth)
+    h = np.append(h, h[-1])
+    return gamma_m * circum * k0_tan_d * h * sig
