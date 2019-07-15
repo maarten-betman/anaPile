@@ -26,7 +26,7 @@ class Pressure(TestCase):
                     alpha=0.7,
                     beta=1,
                     s=1,
-                    A=0.25 ** 2,
+                    area=0.25 ** 2,
                     return_q_components=True)
 
         rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef.zid, -3.5))
@@ -96,7 +96,7 @@ class Pressure(TestCase):
 
     def test_join_cpt_with_classification(self):
         df = soil.join_cpt_with_classification(self.gef, self.layer_table)
-        self.assertEqual(df["grain_pressure"].iloc[0], .001008)
+        self.assertEqual(df["grain_pressure"].iloc[0], .0010071)
 
     def test_negative_friction(self):
         layer_table = pd.read_csv('files/d_foundation_layer_table.csv')

@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, A, return_q_components=False):
+def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, area, return_q_components=False):
     """
 
     Parameters
@@ -17,7 +17,7 @@ def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, A, return_
     alpha : float
     beta : float
     s : float
-    A : float
+    area : float
         Pile tip area.
     return_q_components : bool
         Return separate qI, qII, qIII tracks
@@ -64,7 +64,7 @@ def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, A, return_
     qc3_range = np.fmin.accumulate(qc3_range[::-1])[::-1]
     qc3 = np.mean(qc3_range)
 
-    rb = min(alpha * beta * s * 0.5 * (0.5 * (qc1 + qc2) + qc3), 15) * A
+    rb = min(alpha * beta * s * 0.5 * (0.5 * (qc1 + qc2) + qc3), 15) * area
 
     if return_q_components:
         return rb, qc1, qc2, qc3
@@ -169,14 +169,14 @@ def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     return np.append(force, force[-1])
 
 
-def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0, start_at_ground_level=True):
+def negative_friction(depth, grain_pressure, circum, phi=None, delta=None, gamma_m=1.0, start_at_ground_level=True):
     """
     Only pass masked arrays. You should determine which part of array negative friction occurs.
 
     Parameters
     ----------
     depth : array
-    sig : array
+    grain_pressure : array
         Grain pressure.
     phi : array
         If delta is not defined, phi will be used to determine delta by delta = phi * 2 / 3
@@ -204,4 +204,4 @@ def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0, sta
         h = np.r_[depth[0], h]
     else:
         h = np.append(h, h[-1])
-    return gamma_m * circum * k0_tan_d * h * sig
+    return gamma_m * circum * k0_tan_d * h * grain_pressure
