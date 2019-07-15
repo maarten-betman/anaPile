@@ -43,7 +43,7 @@ class Pressure(TestCase):
         self.assertAlmostEqual(qc_2, 21.714000000000002)
         self.assertAlmostEqual(qc_3, 21.2664298245614)
 
-    def test_sing_tipping(self):
+    def test_sign_tipping(self):
         self.assertEqual(bearing.sign_tipping_idx(np.array([1., 0.5, -0.5, -1])), 2)
 
     def test_settlement(self):
