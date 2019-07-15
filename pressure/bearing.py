@@ -155,7 +155,7 @@ def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     return np.append(force, force[-1])
 
 
-def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0):
+def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0, start_at_ground_level=True):
     """
     Only pass masked arrays. You should determine which part of array negative friction occurs.
 
@@ -170,6 +170,8 @@ def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0):
         Delta values for friction adhesion.
     gamma_m : float
         Reduction factor.
+    start_at_ground_level : bool
+        If the negative friction starts at ground level, the first value in depth, is the first thickness value.
 
     Returns
     -------
@@ -181,6 +183,11 @@ def negative_friction(depth, sig, circum, phi=None, delta=None, gamma_m=1.0):
 
     k0_tan_d = (1 - np.sin(phi)) * np.tan(delta)
     k0_tan_d[k0_tan_d < 0.25] = 0.25
+
     h = np.diff(depth)
-    h = np.append(h, h[-1])
+
+    if start_at_ground_level:
+        h = np.r_[depth[0], h]
+    else:
+        h = np.append(h, h[-1])
     return gamma_m * circum * k0_tan_d * h * sig

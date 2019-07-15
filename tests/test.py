@@ -95,6 +95,23 @@ class Pressure(TestCase):
         df = soil.join_cpt_with_classification(self.gef, self.layer_table)
         self.assertEqual(df["grain_pressure"].iloc[0], .001008)
 
+    def test_negative_friction(self):
+        layer_table = pd.read_csv('files/d_foundation_layer_table.csv')
+        self.gef.groundwater_level = 1
+        df = soil.join_cpt_with_classification(self.gef, layer_table)
 
+        tipping_point = nap_to_depth(self.gef.zid, -2.1)
+        idx_tp = np.argmin(np.abs(self.gef.df.depth.values - tipping_point))
+        s = slice(0, idx_tp - 1)
 
+        if SHOW_PLOTS:
+            # show chamfer line
+            fig = self.gef.plot(show=False)
+            fig.axes[0].plot(df.qc.values[s], df.depth.values[s], color='red')
+            fig.axes[0].hlines(tipping_point, 0, df.qc.values[s].max())
+            plt.show()
 
+        f = bearing.negative_friction(df.depth.values[s], df.grain_pressure.values[s], 0.25 * 4,
+                                  df.phi.values[s])
+        deviation = abs(1 - 19.355 / (f.sum() * 1000))
+        self.assertTrue(deviation < 1e-3)

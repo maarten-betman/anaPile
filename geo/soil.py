@@ -1,10 +1,10 @@
 import numpy as np
 from pygef import nap_to_depth
 
-WATER_PRESSURE = .0098
+WATER_PRESSURE = .00981
 
 
-def grain_pressure(depth, gamma_sat, u2=None):
+def grain_pressure(depth, gamma_sat, gamma, u2=None):
     """
     Determine the grain pressure over the depth.
 
@@ -14,6 +14,8 @@ def grain_pressure(depth, gamma_sat, u2=None):
         Depth values in [m], returned by Pygef.
     gamma_sat : array
         Saturated gamma values in [MPa]. Determined by classification.
+    gamma : array
+        Gamma values in [MPa]. Determined by classification.
     u2 : array
         Water pressure in [MPa]
     Returns
@@ -25,8 +27,15 @@ def grain_pressure(depth, gamma_sat, u2=None):
     h = np.r_[depth[0], h]
     if u2 is None:
         u2 = depth * WATER_PRESSURE
+        u2[u2 < 0] = 0
 
-    return np.cumsum(h * gamma_sat) - u2
+    weights = h * gamma_sat
+
+    # correct for soil above water level
+    mask = u2 == 0
+    weights[mask] = h[mask] * gamma[mask]
+
+    return np.cumsum(weights) - u2
 
 
 def join_cpt_with_classification(gef, layer_table):
@@ -53,9 +62,11 @@ def join_cpt_with_classification(gef, layer_table):
     elif gef.groundwater_level is not None:
         water_depth = nap_to_depth(gef.zid, gef.groundwater_level)
         u2 = (soil_properties.depth - water_depth) * WATER_PRESSURE
+        u2[u2 < 0] = 0
     else:
         u2 = soil_properties.depth * WATER_PRESSURE
 
     soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
-                                                       soil_properties.gamma_sat.values, u2)
+                                                       soil_properties.gamma_sat.values, soil_properties.gamma.values,
+                                                       u2)
     return soil_properties
