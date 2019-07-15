@@ -56,5 +56,6 @@ def join_cpt_with_classification(gef, layer_table):
     else:
         u2 = soil_properties.depth * WATER_PRESSURE
 
-    soil_properties["sig'"] = grain_pressure(soil_properties.depth.values, soil_properties.gamma_sat.values, u2)
+    soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
+                                                       soil_properties.gamma_sat.values, u2)
     return soil_properties

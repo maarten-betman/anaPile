@@ -48,10 +48,10 @@ class Pressure(TestCase):
 
     def test_settlement(self):
         s = settlement.soil.settlement_over_depth(
-            cs=self.soil_prop["C's"].values,
-            cp=self.soil_prop["C'p"].values,
+            cs=self.soil_prop["C_s"].values,
+            cp=self.soil_prop["C_p"].values,
             depth=self.soil_prop['depth'].values,
-            sigma=self.soil_prop["sig'"].values
+            sigma=self.soil_prop["grain_pressure"].values
         )
         self.assertGreater((s * 1000)[0], 100)
 
@@ -70,6 +70,8 @@ class Pressure(TestCase):
 
     def test_positive_friction(self):
         chamfered_qc = bearing.chamfer_positive_friction(self.gef.df.qc.values, self.gef.df.depth.values)
+
+        # pile tip level
         ptl = nap_to_depth(self.gef.zid, -13.5)
         tipping_point = nap_to_depth(self.gef.zid, -2.1)
 
@@ -91,5 +93,8 @@ class Pressure(TestCase):
 
     def test_join_cpt_with_classification(self):
         df = soil.join_cpt_with_classification(self.gef, self.layer_table)
-        self.assertEqual(df["sig'"].iloc[0], .001008)
+        self.assertEqual(df["grain_pressure"].iloc[0], .001008)
+
+
+
 
