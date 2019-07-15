@@ -1,6 +1,7 @@
 from pygef import ParseGEF
 from unittest import TestCase
 from pressure import bearing
+from geo import soil
 import settlement
 import utils
 from functools import partial
@@ -16,6 +17,7 @@ class Pressure(TestCase):
     def setUp(self) -> None:
         self.gef = ParseGEF('files/example.gef')
         self.soil_prop = pd.read_csv('files/soil_prop_example.csv')
+        self.layer_table = pd.read_csv('files/layer_table.csv')
 
     def test_pile_tip_resistance(self):
         f = partial(bearing.compute_pile_tip_resistance,
@@ -87,3 +89,8 @@ class Pressure(TestCase):
             fig.axes[0].hlines(ptl, 0, chamfered_qc.max())
             fig.axes[0].hlines(tipping_point, 0, chamfered_qc.max())
             plt.show()
+
+    def test_join_cpt_with_classification(self):
+        df = soil.join_cpt_with_classification(self.gef, self.layer_table)
+        self.assertEqual(df["sig'"].iloc[0], .001008)
+
