@@ -94,21 +94,35 @@ def chamfer_positive_friction(qc, depth):
 
     qc[qc < 2] = 0
 
-    # find the indexes where qc > 12
-    idx = np.where(np.sign(np.array(qc) - 12) > 0)[0]
+    # find the indexes where qc > 15
+    idx_gt_15 = np.where(np.sign(np.array(qc) - 14.99) > 0)[0]
 
-    if idx.shape[0] > 0:
+    if idx_gt_15.shape[0] > 0:
         # subsequent indexes should have a differentiated value of 1. Where they are not one, we have another layer.
-        switch_points = np.where(np.diff(idx) != 1)[0]
-        switch_points = np.append(switch_points, idx.shape[0] - 1)
+        switch_points = np.where(np.diff(idx_gt_15) != 1)[0]
+        # indexes of new layers
+        switch_points = np.append(switch_points, idx_gt_15.shape[0] - 1)
         j = 0
 
-        # count the number of indexes in the layer
-        for i in switch_points:
-            n = idx[i] - idx[j]
+        # if layer at 15 MPa < 1 m, chamfer the whole layer to 12 MPa
 
+        for i in switch_points:
+            # count the number of indexes in the layer (proxy for depth of layer)
+            n = idx_gt_15[i] - idx_gt_15[j]
+
+            # layer is smaller than 1 m at 15 MPa
             if n <= n_per_m:
-                qc[idx[j]: idx[i] + 1] = 12
+
+                # define the indexes of the layer where the thickness was measured
+                idx_top = idx_gt_15[j]
+                idx_btm = idx_gt_15[i]
+
+                # now find the closest indexes of that layer that are 12 MPa.
+                idx_closest_12_above = np.argwhere(qc[:idx_top] < 12).flatten()[-1]
+                idx_closest_12_below = np.argwhere(qc[idx_btm:] < 12).flatten()[0] + idx_btm
+
+                # chamfer the layer.
+                qc[idx_closest_12_above: idx_closest_12_below] = 12
 
             j = i + 1
 
