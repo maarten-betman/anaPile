@@ -55,7 +55,9 @@ def join_cpt_with_classification(gef, layer_table):
         results from the layer_table.
 
     """
-    soil_properties = gef.df.merge(layer_table, how='left', left_on='depth', right_on='depth_btm')
+    df = gef.df.assign(rounded_depth=gef.df.depth.values.round(1))
+    layer_table = layer_table.assign(rounded_depth=layer_table.depth_btm.values.round(1))
+    soil_properties = df.merge(layer_table, how='left', on='rounded_depth')
     soil_properties = soil_properties.fillna(method='bfill').dropna()
 
     if 'u2' in gef.df.columns:
@@ -70,7 +72,7 @@ def join_cpt_with_classification(gef, layer_table):
     soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
                                                        soil_properties.gamma_sat.values, soil_properties.gamma.values,
                                                        u2)
-    return soil_properties
+    return soil_properties.drop(columns=['rounded_depth'])
 
 
 def find_last_negative_friction_tipping_point(depth, soil_codes):
