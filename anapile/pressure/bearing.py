@@ -167,6 +167,8 @@ def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     friction_forces : array
         Friction values. Sum for the total friction.
     """
+    if len(depth) <= 1:
+        return np.array([0])
     shaft_stress = circum * alpha_s * chamfered_qc
     force = shaft_stress[:-1] * np.diff(depth)
     return np.append(force, force[-1])
@@ -195,6 +197,8 @@ def negative_friction(depth, grain_pressure, circum, phi=None, delta=None, gamma
     friction_forces : array
         Friction values. Sum for the total friction.
     """
+    if len(depth) <= 1:
+        return np.array([0])
     if delta is None:
         delta = phi * 2 / 3
 
