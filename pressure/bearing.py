@@ -134,6 +134,7 @@ def sign_tipping_idx(arr):
 
 def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     """
+    Only pass masked arrays. You should determine which part of array positive friction occurs.
 
     Parameters
     ----------
