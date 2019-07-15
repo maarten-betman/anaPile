@@ -1,9 +1,8 @@
-from pygef import ParseGEF
+from pygef import ParseGEF, nap_to_depth
 from unittest import TestCase
 from pressure import bearing
 from geo import soil
 import settlement
-import utils
 from functools import partial
 import numpy as np
 import pandas as pd
@@ -30,14 +29,14 @@ class Pressure(TestCase):
                     A=0.25 ** 2,
                     return_q_components=True)
 
-        rb, qc_1, qc_2, qc_3 = f(utils.nap_to_depth(self.gef.zid, -3.5))
+        rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef.zid, -3.5))
 
         self.assertAlmostEqual(rb, .2575636376096491)
         self.assertAlmostEqual(qc_1, 10.33309298245614)
         self.assertAlmostEqual(qc_2, 5.92369298245614)
         self.assertAlmostEqual(qc_3, 3.645944736842105)
 
-        rb, qc_1, qc_2, qc_3 = f(utils.nap_to_depth(self.gef.zid, -12))
+        rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef.zid, -12))
 
         self.assertAlmostEqual(rb, .9375)
         self.assertAlmostEqual(qc_1, 27.906636363636366)
@@ -71,8 +70,8 @@ class Pressure(TestCase):
 
     def test_positive_friction(self):
         chamfered_qc = bearing.chamfer_positive_friction(self.gef.df.qc.values, self.gef.df.depth.values)
-        ptl = utils.nap_to_depth(self.gef.zid, -13.5)
-        tipping_point = utils.nap_to_depth(self.gef.zid, -2.1)
+        ptl = nap_to_depth(self.gef.zid, -13.5)
+        tipping_point = nap_to_depth(self.gef.zid, -2.1)
 
         idx_ptl = np.argmin(np.abs(self.gef.df.depth.values - ptl))
         idx_tp = np.argmin(np.abs(self.gef.df.depth.values - tipping_point))
