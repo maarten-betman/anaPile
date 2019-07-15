@@ -124,4 +124,4 @@ class Pressure(TestCase):
         ptl = nap_to_depth(self.gef.zid, -13.5)
         idx_ptl = np.argmin(np.abs(self.gef.df.depth.values - ptl))
 
-        self.assertTrue(soil.find_last_sand_layer(df.depth.values[:idx_ptl], df.soil_code[:idx_ptl]), 3.848)
+        self.assertTrue(soil.find_last_negative_friction_tipping_point(df.depth.values[:idx_ptl], df.soil_code[:idx_ptl]), 3.848)

@@ -16,7 +16,7 @@ def single_pile(gef, layer_table, pile_tip_level_nap, d_eq, circum, area, alpha_
     ptl_slice = slice(0, idx_ptl)
 
     # assume the tipping point is on top of the sand layers.
-    tipping_point = soil.find_last_sand_layer(df.depth.values[ptl_slice], df.soil_code[ptl_slice])
+    tipping_point = soil.find_last_negative_friction_tipping_point(df.depth.values[ptl_slice], df.soil_code[ptl_slice])
 
     idx_tp = np.argmin(np.abs(df.depth.values - tipping_point))
     negative_friction_slice = slice(0, idx_tp)
@@ -30,8 +30,8 @@ def single_pile(gef, layer_table, pile_tip_level_nap, d_eq, circum, area, alpha_
 
     positive_friction_slice = slice(idx_tp, idx_ptl)
 
-    chamfered_qc = bearing.chamfer_positive_friction(df.qc.values[positive_friction_slice],
-                                                     gef.df.depth.values[positive_friction_slice])
+    chamfered_qc = bearing.chamfer_positive_friction(df.qc.values,
+                                                     gef.df.depth.values)[positive_friction_slice]
 
     rs = (bearing.positive_friction(depth=df.depth.values[positive_friction_slice],
                                     chamfered_qc=chamfered_qc,

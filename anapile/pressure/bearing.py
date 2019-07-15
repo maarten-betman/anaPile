@@ -119,7 +119,10 @@ def chamfer_positive_friction(qc, depth):
 
                 # now find the closest indexes of that layer that are 12 MPa.
                 idx_closest_12_above = np.argwhere(qc[:idx_top] < 12).flatten()[-1]
-                idx_closest_12_below = np.argwhere(qc[idx_btm:] < 12).flatten()[0] + idx_btm
+                try:
+                    idx_closest_12_below = np.argwhere(qc[idx_btm:] < 12).flatten()[0] + idx_btm
+                except IndexError:
+                    idx_closest_12_below = idx_btm
 
                 # chamfer the layer.
                 qc[idx_closest_12_above: idx_closest_12_below] = 12
