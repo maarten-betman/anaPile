@@ -1,6 +1,6 @@
 from pygef import ParseGEF, nap_to_depth
-from pressure import bearing
-from geo import soil
+from anapile.pressure import bearing
+from anapile.geo import soil
 import pandas as pd
 import numpy as np
 

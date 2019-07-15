@@ -1,4 +1,4 @@
-from settlement import fitted_curves
+from anapile.settlement import fitted_curves
 from scipy import interpolate
 from scipy.optimize import root_scalar
 

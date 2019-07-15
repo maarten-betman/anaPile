@@ -1,8 +1,8 @@
 from pygef import ParseGEF, nap_to_depth
 from unittest import TestCase
-from pressure import bearing
-from geo import soil
-import settlement
+from anapile import settlement
+from anapile.pressure import bearing
+from anapile.geo import soil
 from functools import partial
 import numpy as np
 import pandas as pd
@@ -115,7 +115,7 @@ class Pressure(TestCase):
             plt.show()
 
         f = bearing.negative_friction(df.depth.values[s], df.grain_pressure.values[s], 0.25 * 4,
-                                  df.phi.values[s])
+                                      df.phi.values[s])
         deviation = abs(1 - 19.355 / (f.sum() * 1000))
         self.assertTrue(deviation < 1e-3)
 
