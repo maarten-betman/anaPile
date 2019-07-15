@@ -1,5 +1,6 @@
 import numpy as np
 from pygef import nap_to_depth
+import re
 
 WATER_PRESSURE = .00981
 
@@ -70,3 +71,24 @@ def join_cpt_with_classification(gef, layer_table):
                                                        soil_properties.gamma_sat.values, soil_properties.gamma.values,
                                                        u2)
     return soil_properties
+
+
+def find_last_sand_layer(depth, soil_codes):
+    """
+    Find the first weak layer on top of the sand layers.
+
+    Parameters
+    ----------
+    depth : array
+        cpt's depth values in [m] sliced to the pile tip level.
+    soil_codes : array
+        soil_code values merged with the cpt, also sliced to the pile tip level.
+
+    Returns
+    -------
+    depth : float
+        Depth of the bottom of the weak layers on top of the sand layers.
+    """
+    m = re.compile(r'[VK]')
+    weak_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_codes)))
+    return depth[np.argwhere(weak_layer == 1).flatten()[-1]]

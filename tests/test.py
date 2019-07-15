@@ -118,3 +118,10 @@ class Pressure(TestCase):
                                   df.phi.values[s])
         deviation = abs(1 - 19.355 / (f.sum() * 1000))
         self.assertTrue(deviation < 1e-3)
+
+    def test_find_last_sand_layer(self):
+        df = soil.join_cpt_with_classification(self.gef, self.layer_table)
+        ptl = nap_to_depth(self.gef.zid, -13.5)
+        idx_ptl = np.argmin(np.abs(self.gef.df.depth.values - ptl))
+
+        self.assertTrue(soil.find_last_sand_layer(df.depth.values[:idx_ptl], df.soil_code[:idx_ptl]), 3.848)
