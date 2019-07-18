@@ -117,7 +117,7 @@ class Pressure(TestCase):
         f = bearing.negative_friction(df.depth.values[s], df.grain_pressure.values[s], 0.25 * 4,
                                       df.phi.values[s])
         deviation = abs(1 - 19.355 / (f.sum() * 1000))
-        self.assertTrue(deviation < 1e-3)
+        self.assertTrue(deviation < 1e-2)
 
     def test_find_last_sand_layer(self):
         df = soil.join_cpt_with_classification(self.gef, self.layer_table)
