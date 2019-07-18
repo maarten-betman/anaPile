@@ -31,6 +31,7 @@ class PileCalculation:
         self.pile_factor_s = pile_factor_s
         self.layer_table = layer_table
         self.df = soil.join_cpt_with_classification(cpt, layer_table)
+        # current pile tip level results
         self.pile_tip_level = None
         self._idx_ptl = None
         self.negative_friction_slice = None
@@ -43,10 +44,19 @@ class PileCalculation:
         self.rs = None
         self.rb = None
         self.nk = None
+        self.pile_tip_level = None
+        # arrays
+        self.rb_ = None
+        self.qc1_ = None
+        self.qc2_ = None
+        self.qc3_ = None
+        self.rs_ = None
+        self.rb_ = None
+        self.nk_ = None
+        self.pile_tip_level_ = None
 
-    def plot_pile_calculation(self, show=True, figsize=(6, 10), **kwargs):
-        if self.negative_friction_slice is None or self.positive_friction_slice is None:
-            self.run_calculation()
+    def plot_pile_calculation(self, pile_tip_level, show=True, figsize=(6, 10), **kwargs):
+        self.run_calculation(pile_tip_level)
         fig = self.cpt.plot(figsize=figsize, **kwargs, show=False)
         fig.axes[0].plot(
             self.df.qc.values[self.negative_friction_slice],
@@ -82,14 +92,46 @@ class PileCalculation:
             "$R_s$: {:3.2f} kN".format(self.rs * 1000),
         )
 
-        plt.suptitle("$R_{{cal}}$: {:3.2f} kN".format(sum([self.rs, self.rb, -self.nk]) * 1000))
+        plt.suptitle(
+            "$R_{{cal}}$: {:3.2f} kN".format(sum([self.rs, self.rb, -self.nk]) * 1000)
+        )
+
+        if show:
+            plt.show()
+        return fig
+
+    def plot_pile_calculation_range(self, pile_tip_level, show=True, figsize=(6, 10), **kwargs):
+        self.run_calculation(pile_tip_level)
+        fig = self.cpt.plot(figsize=figsize, **kwargs, show=False)
+        fig.axes[0].plot(
+            self.nk_,
+            self.pile_tip_level_,
+            color="red",
+        )
+        fig.axes[0].plot(
+            self.rs_,
+            self.pile_tip_level_,
+            color="lightgreen",
+            label='$R_s$'
+        )
+        fig.axes[0].plot(
+            self.rb_,
+            self.pile_tip_level_,
+            color="darkgreen",
+            label='$R_b$'
+        )
+        fig.axes[0].plot(
+            np.array(self.rb_) + np.array(self.rs_) - np.array(self.nk_),
+            self.pile_tip_level_,
+            label=r'$R_{cal}$'
+        )
 
         if show:
             plt.show()
         return fig
 
     @abc.abstractmethod
-    def run_calculation(self):
+    def run_calculation(self, pile_tip_level):
         raise NotImplementedError
 
 
@@ -110,7 +152,6 @@ class PileCalculationLowerBound(PileCalculation):
         alpha_p=0.7,
         beta_p=1.0,
         pile_factor_s=1.0,
-        pile_tip_level=None,
     ):
         super().__init__(
             cpt,
@@ -125,48 +166,10 @@ class PileCalculationLowerBound(PileCalculation):
             pile_factor_s,
         )
 
-        self._set_ptl(pile_tip_level)
-
     @property
     def pile_tip_level_nap(self):
         if self.pile_tip_level:
             return depth_to_nap(self.pile_tip_level_nap, self.cpt.zid)
-
-    def _set_ptl(self, pile_tip_level):
-        """
-        Set pile tip level property.
-
-        Parameters
-        ----------
-        pile_tip_level : float
-            Depth value. If None given, pile tip level is set automatically.
-
-        Returns
-        -------
-        None
-        """
-        if pile_tip_level is not None:
-            self.pile_tip_level = pile_tip_level
-        elif self.pile_tip_level is None:
-            self.det_lower_boundary_pile_tip_level()
-        # find the index of the pile tip
-        self._idx_ptl = np.argmin(
-            np.abs(self.cpt.df.depth.values - self.pile_tip_level)
-        )
-
-    def det_lower_boundary_pile_tip_level(self):
-        """
-        Naively set pile tip level in sand layer.
-
-        Returns
-        -------
-        None
-        """
-        self.pile_tip_level = soil.determine_pile_tip_level(
-            self.layer_table.depth_btm.values,
-            self.layer_table.soil_code.values,
-            self.d_eq,
-        )
 
     def negative_friction(self, negative_friction_range=None, agg=True):
         """
@@ -291,10 +294,19 @@ class PileCalculationLowerBound(PileCalculation):
         else:
             return self.rb, self.qc1, self.qc2, self.qc3
 
-    def run_calculation(self):
-        self.negative_friction()
-        self.positive_friction()
-        self.pile_tip_resistance()
+    def run_calculation(self, pile_tip_level):
+        if isinstance(pile_tip_level, (int, float)):
+            pile_tip_level = [pile_tip_level]
+
+        for ptl in pile_tip_level:
+            self.pile_tip_level = ptl
+            self.nk_.append(self.negative_friction())
+            self.rs_.append(self.positive_friction())
+            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
+            self.rb_.append(rb)
+            self.qc1_.append(qc1)
+            self.qc2_.append(qc2)
+            self.qc3_.append(qc3)
 
 
 def det_slice(single_range, a):
