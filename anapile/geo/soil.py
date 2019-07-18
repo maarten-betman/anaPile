@@ -75,15 +75,15 @@ def join_cpt_with_classification(gef, layer_table):
     return soil_properties.drop(columns=['rounded_depth'])
 
 
-def find_last_negative_friction_tipping_point(depth, soil_codes):
+def find_last_negative_friction_tipping_point(depth, soil_code):
     """
-    Find the first weak layer on top of the sand layers.
+    Find the first weak layer (organic main layer) on top of the sand layers.
 
     Parameters
     ----------
     depth : array
         cpt's depth values in [m] sliced to the pile tip level.
-    soil_codes : array
+    soil_code : array
         soil_code values merged with the cpt, also sliced to the pile tip level.
 
     Returns
@@ -92,22 +92,22 @@ def find_last_negative_friction_tipping_point(depth, soil_codes):
         Depth of the bottom of the weak layers on top of the sand layers.
     """
     m = re.compile(r'[VK]')
-    weak_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_codes)))
+    weak_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weak_layer == 1).flatten()
     if len(idx) == 0:
         return depth[0]
     return depth[idx[-1]]
 
 
-def find_positive_friction_tipping_point(depth, soil_codes):
+def find_positive_friction_tipping_point(depth, soil_code):
     """
-    Find the first weakish layer on top of the sand layers.
+    Find the first weakish (sand, with organic sublayer or organic main layer) layer on top of the sand layers.
 
     Parameters
     ----------
     depth : array
         cpt's depth values in [m] sliced to the pile tip level.
-    soil_codes : array
+    soil_code : array
         soil_code values merged with the cpt, also sliced to the pile tip level.
 
     Returns
@@ -116,17 +116,42 @@ def find_positive_friction_tipping_point(depth, soil_codes):
         Depth of the bottom of the weak layers on top of the sand layers.
     """
     m = re.compile(r'[ZG][kv]|[VK]')
-    weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_codes)))
+    weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weakish_layer == 1).flatten()
     if len(idx) == 0:
         return depth[0]
     return depth[idx[-1]]
 
 
-def determine_pile_tip_level(depth, soil_codes, d_eq):
+def determine_pile_tip_level(depth, soil_code, d_eq):
     if d_eq > 500:
         factor = 4
     else:
         factor = 8
 
-    return find_positive_friction_tipping_point(depth, soil_codes) + d_eq * factor
+    return find_positive_friction_tipping_point(depth, soil_code) + d_eq * factor
+
+
+def find_clean_sand_layers(thickness, soil_code, depth):
+    m = re.compile(r'[ZG][kv]|[VK]')
+    weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
+
+    # indexes of boundaries
+    layer_bounds = np.argwhere(np.r_[1, np.diff(weakish_layer)] != 0).flatten()
+
+    sand_thickness = []
+    top_sand_layer = []
+    btm_sand_layer = []
+    for start, end in np.roll(np.repeat(layer_bounds, 2).reshape(-1, 2), 1)[1:, :]:
+
+        if 1 in weakish_layer[start: end]:
+            continue
+        sand_thickness.append(thickness[start: end].sum())
+        top_sand_layer.append(depth[start])
+
+    if 0 in weakish_layer[end:]:
+        sand_thickness.append(thickness[end:].sum())
+        top_sand_layer.append(depth[start])
+        btm_sand_layer.append(depth[end])
+
+    return np.array(sand_thickness), np.array(top_sand_layer), np.array(btm_sand_layer)
