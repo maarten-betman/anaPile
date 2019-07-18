@@ -216,7 +216,7 @@ class PileCalculationLowerBound(PileCalculation):
             return self.nk
         return negative_friction
 
-    def positive_friction(self, positive_friction_range=None, agg=True):
+    def positive_friction(self, positive_friction_range=None, agg=True, conservative=False):
         """
         Determine shaft friction Rs.
 
@@ -232,6 +232,8 @@ class PileCalculationLowerBound(PileCalculation):
                 True: aggregates the friction values in total friction.
                 False: Return friction values per cpt layer.
 
+        conservative : bool
+
         Returns
         -------
         out : Union[float, np.array[float]]
@@ -239,8 +241,13 @@ class PileCalculationLowerBound(PileCalculation):
             See agg parameter
         """
         if positive_friction_range is None:
-            tipping_point = soil.find_positive_friction_tipping_point(
-                self.df.depth.values, self.df.soil_code.values
+            ptl_slice = slice(0, self._idx_ptl)
+            if conservative:
+                f = soil.find_positive_friction_tipping_point
+            else:
+                f = soil.find_last_negative_friction_tipping_point
+            tipping_point = f(
+                self.df.depth.values[ptl_slice], self.df.soil_code.values[ptl_slice]
             )
             idx_tp = np.argmin(np.abs(self.df.depth.values - tipping_point))
             self.positive_friction_slice = slice(idx_tp, self._idx_ptl)
@@ -297,6 +304,15 @@ class PileCalculationLowerBound(PileCalculation):
     def run_calculation(self, pile_tip_level):
         if isinstance(pile_tip_level, (int, float)):
             pile_tip_level = [pile_tip_level]
+
+        self.rb_ = []
+        self.qc1_ = []
+        self.qc2_ = []
+        self.qc3_ = []
+        self.rs_ = []
+        self.rb_ = []
+        self.nk_ = []
+        self.pile_tip_level_ = []
 
         for ptl in pile_tip_level:
             self.pile_tip_level = ptl
