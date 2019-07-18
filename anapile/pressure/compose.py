@@ -4,6 +4,7 @@ from anapile.geo import soil
 import numpy as np
 import matplotlib.pyplot as plt
 import abc
+import pandas as pd
 
 
 class PileCalculation:
@@ -163,6 +164,18 @@ class PileCalculation:
         if show:
             plt.show()
         return fig
+
+    def calculation_result_table(self, pile_tip_level):
+        self.run_calculation(pile_tip_level)
+        return pd.DataFrame({
+            'pile_tip_level': self.pile_tip_level_,
+            'negative_friction': self.nk_ * 1000,
+            'Rs': self.rs_ * 1000,
+            'Rb': self.rb_ * 1000,
+            'qc1': self.qc1_,
+            'qc2': self.qc2_,
+            'qc3': self.qc3_
+        })
 
     @abc.abstractmethod
     def run_calculation(self, pile_tip_level):
