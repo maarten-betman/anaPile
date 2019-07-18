@@ -1,4 +1,4 @@
-from pygef import depth_to_nap
+from pygef import depth_to_nap, nap_to_depth
 from anapile.pressure import bearing
 from anapile.geo import soil
 import numpy as np
@@ -62,18 +62,20 @@ class PileCalculation:
         Parameters
         ----------
         pile_tip_level : float
-            Depth value. If None given, pile tip level is set automatically.
+            Depth value wrt NAP.
         Returns
         -------
         None
         """
-        self.pile_tip_level = pile_tip_level
+        self.pile_tip_level = nap_to_depth(self.cpt.zid, pile_tip_level)
         # find the index of the pile tip
         self._idx_ptl = np.argmin(
             np.abs(self.cpt.df.depth.values - self.pile_tip_level)
         )
 
-    def plot_pile_calculation(self, pile_tip_level, show=True, figsize=(6, 10), **kwargs):
+    def plot_pile_calculation(
+        self, pile_tip_level, show=True, figsize=(6, 10), **kwargs
+    ):
         self.run_calculation(pile_tip_level)
         fig = self.cpt.plot(figsize=figsize, **kwargs, show=False)
         fig.axes[0].plot(
@@ -118,46 +120,46 @@ class PileCalculation:
             plt.show()
         return fig
 
-    def plot_pile_calculation_range(self, pile_tip_level, show=True, figsize=(9, 10), **kwargs):
+    def plot_pile_calculation_range(
+        self, pile_tip_level, show=True, figsize=(9, 10), **kwargs
+    ):
         self.run_calculation(pile_tip_level)
 
         fig = plt.figure(figsize=figsize, **kwargs)
         fig.add_subplot(1, 3, 1)
-        plt.ylabel('Depth [m]')
-        plt.xlabel('qc [MPa]')
-        plt.plot(self.cpt.df.qc.values, self.cpt.df.depth.values)
+        plt.ylabel("Depth [m]")
+        plt.xlabel("qc [MPa]")
+        plt.plot(
+            self.cpt.df.qc.values, self.cpt.df.elevation_with_respect_to_NAP.values
+        )
         plt.grid()
         fig.add_subplot(1, 3, 2)
-        plt.xlabel('friction number [%]')
-        plt.plot(self.cpt.df.friction_number.values, self.cpt.df.depth.values)
+        plt.xlabel("friction number [%]")
+        plt.plot(
+            self.cpt.df.friction_number.values,
+            self.cpt.df.elevation_with_respect_to_NAP.values,
+        )
         plt.grid()
         fig.add_subplot(1, 3, 3)
         plt.plot(
-            -self.nk_ * 1e3,
-            self.pile_tip_level_,
-            color="red",
-            label=r'$N_{friction}$'
+            -self.nk_ * 1e3, self.pile_tip_level_, color="red", label=r"$N_{friction}$"
         )
         plt.plot(
-            self.rs_ * 1e3,
-            self.pile_tip_level_,
-            color="lightgreen",
-            label='$R_s$'
+            self.rs_ * 1e3, self.pile_tip_level_, color="lightgreen", label="$R_s$"
         )
-        plt.plot(
-            self.rb_ * 1e3,
-            self.pile_tip_level_,
-            color="darkgreen",
-            label='$R_b$'
-        )
+        plt.plot(self.rb_ * 1e3, self.pile_tip_level_, color="darkgreen", label="$R_b$")
         plt.plot(
             (np.array(self.rb_) + np.array(self.rs_) - np.array(self.nk_)) * 1e3,
             self.pile_tip_level_,
-            label=r'$R_{cal}$'
+            label=r"$R_{cal}$",
+            lw=3
         )
-        plt.xlabel('Force [kN]')
-        plt.ylim(self.cpt.df.depth.values.max(), self.cpt.df.depth.values.min())
-        plt.vlines(0, self.cpt.df.depth.values.max(), self.cpt.df.depth.values.min())
+        plt.xlabel("Force [kN]")
+        plt.vlines(
+            0,
+            self.cpt.df.elevation_with_respect_to_NAP.values.max(),
+            self.cpt.df.elevation_with_respect_to_NAP.values.min(),
+        )
         plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
         plt.grid()
 
@@ -167,15 +169,17 @@ class PileCalculation:
 
     def calculation_result_table(self, pile_tip_level):
         self.run_calculation(pile_tip_level)
-        return pd.DataFrame({
-            'pile_tip_level': self.pile_tip_level_,
-            'negative_friction': self.nk_ * 1000,
-            'Rs': self.rs_ * 1000,
-            'Rb': self.rb_ * 1000,
-            'qc1': self.qc1_,
-            'qc2': self.qc2_,
-            'qc3': self.qc3_
-        })
+        return pd.DataFrame(
+            {
+                "pile_tip_level": self.pile_tip_level_,
+                "negative_friction": self.nk_ * 1000,
+                "Rs": self.rs_ * 1000,
+                "Rb": self.rb_ * 1000,
+                "qc1": self.qc1_,
+                "qc2": self.qc2_,
+                "qc3": self.qc3_,
+            }
+        )
 
     @abc.abstractmethod
     def run_calculation(self, pile_tip_level):
@@ -263,7 +267,9 @@ class PileCalculationLowerBound(PileCalculation):
             return self.nk
         return negative_friction
 
-    def positive_friction(self, positive_friction_range=None, agg=True, conservative=False):
+    def positive_friction(
+        self, positive_friction_range=None, agg=True, conservative=False
+    ):
         """
         Determine shaft friction Rs.
 
