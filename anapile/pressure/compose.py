@@ -57,7 +57,10 @@ class PileCalculation:
         self.beta_p = beta_p
         self.pile_factor_s = pile_factor_s
         self.layer_table = layer_table
-        self.df = soil.join_cpt_with_classification(cpt, layer_table)
+        # merged soil properties
+        self.merged_soil_properties = soil.join_cpt_with_classification(
+            cpt, layer_table
+        )
         # current pile tip level results
         self.pile_tip_level = None
         self._idx_ptl = None
@@ -127,13 +130,17 @@ class PileCalculation:
         """
         if negative_friction_range:
             self.negative_friction_slice = det_slice(
-                    self.df.depth.values, negative_friction_range
-                )
+                self.merged_soil_properties.depth.values, negative_friction_range
+            )
         negative_friction = bearing.negative_friction(
-            depth=self.df.depth.values[self.negative_friction_slice],
-            grain_pressure=self.df.grain_pressure.values[self.negative_friction_slice],
+            depth=self.merged_soil_properties.depth.values[
+                self.negative_friction_slice
+            ],
+            grain_pressure=self.merged_soil_properties.grain_pressure.values[
+                self.negative_friction_slice
+            ],
             circum=self.circum,
-            phi=self.df.phi[self.negative_friction_slice],
+            phi=self.merged_soil_properties.phi[self.negative_friction_slice],
             gamma_m=self.gamma_m,
         )
         self.nk = negative_friction.sum()
@@ -168,13 +175,15 @@ class PileCalculation:
         """
         if positive_friction_range:
             self.positive_friction_slice = det_slice(
-                    positive_friction_range, self.df.depth.values
-                )
+                positive_friction_range, self.merged_soil_properties.depth.values
+            )
         self.chamfered_qc = bearing.chamfer_positive_friction(
-            self.df.qc.values, self.cpt.df.depth.values
+            self.merged_soil_properties.qc.values, self.cpt.df.depth.values
         )[self.positive_friction_slice]
         positive_friction = bearing.positive_friction(
-            depth=self.df.depth.values[self.positive_friction_slice],
+            depth=self.merged_soil_properties.depth.values[
+                self.positive_friction_slice
+            ],
             chamfered_qc=self.chamfered_qc,
             circum=self.circum,
             alpha_s=self.alpha_s,
@@ -202,8 +211,8 @@ class PileCalculation:
         """
         self.rb, self.qc1, self.qc2, self.qc3 = bearing.compute_pile_tip_resistance(
             ptl=self.pile_tip_level,
-            qc=self.df.qc.values,
-            depth=self.df.depth.values,
+            qc=self.merged_soil_properties.qc.values,
+            depth=self.merged_soil_properties.depth.values,
             d_eq=self.d_eq,
             alpha=self.alpha_p,
             beta=self.beta_p,
@@ -222,13 +231,13 @@ class PileCalculation:
         self.run_calculation(pile_tip_level)
         fig = self.cpt.plot(figsize=figsize, **kwargs, show=False)
         fig.axes[0].plot(
-            self.df.qc.values[self.negative_friction_slice],
-            self.df.depth.values[self.negative_friction_slice],
+            self.merged_soil_properties.qc.values[self.negative_friction_slice],
+            self.merged_soil_properties.depth.values[self.negative_friction_slice],
             color="red",
         )
         fig.axes[0].plot(
             self.chamfered_qc,
-            self.df.depth[self.positive_friction_slice],
+            self.merged_soil_properties.depth[self.positive_friction_slice],
             color="lightgreen",
             lw=3,
         )
@@ -246,12 +255,16 @@ class PileCalculation:
 
         fig.axes[0].text(
             factor_horizontal * fig.axes[0].get_xlim()[1],
-            self.df.depth.values[self.negative_friction_slice].mean(),
+            self.merged_soil_properties.depth.values[
+                self.negative_friction_slice
+            ].mean(),
             "$N_{{friction}}$: {:3.2f} kN".format(self.nk * 1000),
         )
         fig.axes[0].text(
             factor_horizontal * fig.axes[0].get_xlim()[1],
-            self.df.depth.values[self.positive_friction_slice].mean(),
+            self.merged_soil_properties.depth.values[
+                self.positive_friction_slice
+            ].mean(),
             "$R_s$: {:3.2f} kN".format(self.rs * 1000),
         )
 
@@ -295,7 +308,7 @@ class PileCalculation:
             (np.array(self.rb_) + np.array(self.rs_) - np.array(self.nk_)) * 1e3,
             self.pile_tip_level_,
             label=r"$R_{cal}$",
-            lw=3
+            lw=3,
         )
         plt.xlabel("Force [kN]")
         plt.vlines(
@@ -433,13 +446,16 @@ class PileCalculationLowerBound(PileCalculation):
         if negative_friction_range is None:
             ptl_slice = slice(0, self._idx_ptl)
             tipping_point = soil.find_last_negative_friction_tipping_point(
-                self.df.depth.values[ptl_slice], self.df.soil_code.values[ptl_slice]
+                self.merged_soil_properties.depth.values[ptl_slice],
+                self.merged_soil_properties.soil_code.values[ptl_slice],
             )
-            idx_tp = np.argmin(np.abs(self.df.depth.values - tipping_point))
+            idx_tp = np.argmin(
+                np.abs(self.merged_soil_properties.depth.values - tipping_point)
+            )
             self.negative_friction_slice = slice(0, idx_tp)
         else:
             self.negative_friction_slice = det_slice(
-                self.df.depth.values, negative_friction_range
+                self.merged_soil_properties.depth.values, negative_friction_range
             )
 
         return super().negative_friction(negative_friction_range, agg)
@@ -477,9 +493,12 @@ class PileCalculationLowerBound(PileCalculation):
             else:
                 f = soil.find_last_negative_friction_tipping_point
             tipping_point = f(
-                self.df.depth.values[ptl_slice], self.df.soil_code.values[ptl_slice]
+                self.merged_soil_properties.depth.values[ptl_slice],
+                self.merged_soil_properties.soil_code.values[ptl_slice],
             )
-            idx_tp = np.argmin(np.abs(self.df.depth.values - tipping_point))
+            idx_tp = np.argmin(
+                np.abs(self.merged_soil_properties.depth.values - tipping_point)
+            )
             self.positive_friction_slice = slice(idx_tp, self._idx_ptl)
 
         return super().positive_friction(positive_friction_range, agg, conservative)
@@ -494,19 +513,19 @@ def det_slice(single_range, a):
 
 class PileCalculationSettlementDriven(PileCalculation):
     def __init__(
-            self,
-            cpt,
-            d_eq,
-            circum,
-            area,
-            layer_table,
-            pile_load,
-            soil_load,
-            alpha_s=0.01,
-            gamma_m=1.0,
-            alpha_p=0.7,
-            beta_p=1.0,
-            pile_factor_s=1.0,
+        self,
+        cpt,
+        d_eq,
+        circum,
+        area,
+        layer_table,
+        pile_load,
+        soil_load,
+        alpha_s=0.01,
+        gamma_m=1.0,
+        alpha_p=0.7,
+        beta_p=1.0,
+        pile_factor_s=1.0,
     ):
         """
 
@@ -554,14 +573,4 @@ class PileCalculationSettlementDriven(PileCalculation):
         self.pile_load = pile_load
         self.soil_load = soil_load
 
-    def soil_settlement(self):
-        u2 = geo.soil.estimate_water_pressure(self.cpt)
-        geo.soil.grain_pressure()
-        return self.df
-        # settlement.soil.settlement_over_depth(
-        #     self.df.C_s.values,
-        #     self.df.C_p.values,
-        #     self.df.depth.values,
-        #     geo.soil.grain_pressure()
-        # )
 
