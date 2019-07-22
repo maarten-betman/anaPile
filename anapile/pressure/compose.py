@@ -20,6 +20,31 @@ class PileCalculation:
         beta_p=1.0,
         pile_factor_s=1.0,
     ):
+        """
+
+        Parameters
+        ----------
+        cpt : pygef.ParseGEF
+            Parsed cpt gef file.
+        d_eq : float
+            Equivalent diameter. Is either the diameter of a circle or 1.13 * width of a square.
+        circum : float
+            Circumference of pile. Either 4 * width or pi * diameter.
+        area: float
+            Area of pile tip.
+        layer_table : DataFrame
+            Classification as defined in `tests/files/layer_table.csv`
+        alpha_s : float
+            Alpha s factor used in positive friction calculation.
+        gamma_m : float
+            Gamma m factor used in negative friction calculation.
+        alpha_p : float
+            Alpha p factor used in pile tip resistance calculation.
+        beta_p : float
+            Beta p factor used in pile tip resistance calculation.
+        pile_factor_s : float
+            Factor s used in pile tip resistance calculation.
+        """
         self.cpt = cpt
         self.d_eq = d_eq
         self.circum = circum
@@ -150,7 +175,7 @@ class PileCalculation:
             depth=self.df.depth.values[self.positive_friction_slice],
             chamfered_qc=self.chamfered_qc,
             circum=self.circum,
-            alpha_s=0.01,
+            alpha_s=self.alpha_s,
         )
         self.rs = positive_friction.sum()
         if agg:
@@ -343,6 +368,31 @@ class PileCalculationLowerBound(PileCalculation):
         beta_p=1.0,
         pile_factor_s=1.0,
     ):
+        """
+
+        Parameters
+        ----------
+        cpt : pygef.ParseGEF
+            Parsed cpt gef file.
+        d_eq : float
+            Equivalent diameter. Is either the diameter of a circle or 1.13 * width of a square.
+        circum : float
+            Circumference of pile. Either 4 * width or pi * diameter.
+        area: float
+            Area of pile tip.
+        layer_table : DataFrame
+            Classification as defined in `tests/files/layer_table.csv`
+        alpha_s : float
+            Alpha s factor used in positive friction calculation.
+        gamma_m : float
+            Gamma m factor used in negative friction calculation.
+        alpha_p : float
+            Alpha p factor used in pile tip resistance calculation.
+        beta_p : float
+            Beta p factor used in pile tip resistance calculation.
+        pile_factor_s : float
+            Factor s used in pile tip resistance calculation.
+        """
         super().__init__(
             cpt,
             d_eq,
@@ -438,3 +488,5 @@ def det_slice(single_range, a):
     idx_start = np.argmin(np.abs(a - single_range[0]))
     idx_end = np.argmin(np.abs(a - single_range[1]))
     return slice(idx_start, idx_end)
+
+
