@@ -39,13 +39,44 @@ def grain_pressure(depth, gamma_sat, gamma, u2=None):
     return np.cumsum(weights) - u2
 
 
-def join_cpt_with_classification(gef, layer_table):
+def estimate_water_pressure(cpt, soil_properties=None):
+    """
+    Estimate water pressure. If u2 is in CPT measurements, it is returned.
+    Otherwise it computes a water pressure by assuming a rising pressure over depth.
+
+    Parameters
+    ----------
+    cpt : pygef.ParseCPT
+    soil_properties : pd.DataFrame
+        Merged soil properties w/ pygef.ParseCPT.
+
+    Returns
+    -------
+    u2 : np.array[float]
+        Water pressure over depth.
+
+    """
+    if soil_properties is None:
+        soil_properties = cpt.df
+
+    if 'u2' in cpt.df.columns:
+        u2 = soil_properties.u2.values
+    elif cpt.groundwater_level is not None:
+        water_depth = nap_to_depth(cpt.zid, cpt.groundwater_level)
+        u2 = (soil_properties.depth - water_depth) * WATER_PRESSURE
+        u2[u2 < 0] = 0
+    else:
+        u2 = soil_properties.depth * WATER_PRESSURE
+    return u2
+
+
+def join_cpt_with_classification(cpt, layer_table):
     """
     Merge a layer table as defined in `tests/files/layer_table.csv` with a `cpt` from Pygef.
 
     Parameters
     ----------
-    gef : ParseGEF object.
+    cpt : ParseGEF object.
     layer_table : DataFrame
 
     Returns
@@ -55,19 +86,11 @@ def join_cpt_with_classification(gef, layer_table):
         results from the layer_table.
 
     """
-    df = gef.df.assign(rounded_depth=gef.df.depth.values.round(1))
+    df = cpt.df.assign(rounded_depth=cpt.df.depth.values.round(1))
     layer_table = layer_table.assign(rounded_depth=layer_table.depth_btm.values.round(1))
     soil_properties = df.merge(layer_table, how='left', on='rounded_depth')
     soil_properties = soil_properties.fillna(method='bfill').dropna()
-
-    if 'u2' in gef.df.columns:
-        u2 = soil_properties.u2.values
-    elif gef.groundwater_level is not None:
-        water_depth = nap_to_depth(gef.zid, gef.groundwater_level)
-        u2 = (soil_properties.depth - water_depth) * WATER_PRESSURE
-        u2[u2 < 0] = 0
-    else:
-        u2 = soil_properties.depth * WATER_PRESSURE
+    u2 = estimate_water_pressure(cpt, soil_properties)
 
     soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
                                                        soil_properties.gamma_sat.values, soil_properties.gamma.values,

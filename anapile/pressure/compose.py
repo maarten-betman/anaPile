@@ -4,6 +4,8 @@ from anapile.geo import soil
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+from anapile import settlement
+from anapile import geo
 
 
 class PileCalculation:
@@ -489,4 +491,77 @@ def det_slice(single_range, a):
     idx_end = np.argmin(np.abs(a - single_range[1]))
     return slice(idx_start, idx_end)
 
+
+class PileCalculationSettlementDriven(PileCalculation):
+    def __init__(
+            self,
+            cpt,
+            d_eq,
+            circum,
+            area,
+            layer_table,
+            pile_load,
+            soil_load,
+            alpha_s=0.01,
+            gamma_m=1.0,
+            alpha_p=0.7,
+            beta_p=1.0,
+            pile_factor_s=1.0,
+    ):
+        """
+
+        Parameters
+        ----------
+        cpt : pygef.ParseGEF
+            Parsed cpt gef file.
+        d_eq : float
+            Equivalent diameter. Is either the diameter of a circle or 1.13 * width of a square.
+        circum : float
+            Circumference of pile. Either 4 * width or pi * diameter.
+        area: float
+            Area of pile tip.
+        layer_table : DataFrame
+            Classification as defined in `tests/files/layer_table.csv`
+        pile_load : float
+            Force on pile in [kN]
+            Used to determine settlement of pile w.r.t. soil.
+        soil_load : float
+            (Fictive) load in [MPa] on soil used to calculation soil settlement.
+            This is required and used to determine settlement of pile w.r.t. soil.
+        alpha_s : float
+            Alpha s factor used in positive friction calculation.
+        gamma_m : float
+            Gamma m factor used in negative friction calculation.
+        alpha_p : float
+            Alpha p factor used in pile tip resistance calculation.
+        beta_p : float
+            Beta p factor used in pile tip resistance calculation.
+        pile_factor_s : float
+            Factor s used in pile tip resistance calculation.
+        """
+        super().__init__(
+            cpt,
+            d_eq,
+            circum,
+            area,
+            layer_table,
+            alpha_s,
+            gamma_m,
+            alpha_p,
+            beta_p,
+            pile_factor_s,
+        )
+        self.pile_load = pile_load
+        self.soil_load = soil_load
+
+    def soil_settlement(self):
+        u2 = geo.soil.estimate_water_pressure(self.cpt)
+        geo.soil.grain_pressure()
+        return self.df
+        # settlement.soil.settlement_over_depth(
+        #     self.df.C_s.values,
+        #     self.df.C_p.values,
+        #     self.df.depth.values,
+        #     geo.soil.grain_pressure()
+        # )
 
