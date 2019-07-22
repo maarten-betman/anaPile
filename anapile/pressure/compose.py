@@ -73,6 +73,123 @@ class PileCalculation:
             np.abs(self.cpt.df.depth.values - self.pile_tip_level)
         )
 
+    @property
+    def pile_tip_level_nap(self):
+        if self.pile_tip_level:
+            return depth_to_nap(self.pile_tip_level_nap, self.cpt.zid)
+
+    def negative_friction(self, negative_friction_range=None, agg=True):
+        """
+        Determine negative friction.
+
+        Parameters
+        ----------
+        negative_friction_range : np.array[float]
+            Length == 2.
+            Start and end depth of negative friction.
+
+        agg : bool
+            Influences return type.
+                True: aggregates the friction values in total friction.
+                False: Return friction values per cpt layer.
+
+        Returns
+        -------
+        out : Union[float, np.array[float]]
+            unit [MPa]
+            See agg parameter
+        """
+        if negative_friction_range:
+            self.negative_friction_slice = det_slice(
+                    self.df.depth.values, negative_friction_range
+                )
+        negative_friction = bearing.negative_friction(
+            depth=self.df.depth.values[self.negative_friction_slice],
+            grain_pressure=self.df.grain_pressure.values[self.negative_friction_slice],
+            circum=self.circum,
+            phi=self.df.phi[self.negative_friction_slice],
+            gamma_m=self.gamma_m,
+        )
+        self.nk = negative_friction.sum()
+        if agg:
+            return self.nk
+        return negative_friction
+
+    def positive_friction(
+        self, positive_friction_range=None, agg=True, conservative=False
+    ):
+        """
+        Determine shaft friction Rs.
+
+        Parameters
+        ----------
+        positive_friction_range : np.array[float]
+            Length == 2.
+            Start and end depth of positive friction.
+
+        agg : bool
+            Influences return type.
+                True: aggregates the friction values in total friction.
+                False: Return friction values per cpt layer.
+
+        conservative : bool
+
+        Returns
+        -------
+        out : Union[float, np.array[float]]
+            unit [MPa]
+            See agg parameter
+        """
+        if positive_friction_range:
+            self.positive_friction_slice = det_slice(
+                    positive_friction_range, self.df.depth.values
+                )
+        self.chamfered_qc = bearing.chamfer_positive_friction(
+            self.df.qc.values, self.cpt.df.depth.values
+        )[self.positive_friction_slice]
+        positive_friction = bearing.positive_friction(
+            depth=self.df.depth.values[self.positive_friction_slice],
+            chamfered_qc=self.chamfered_qc,
+            circum=self.circum,
+            alpha_s=0.01,
+        )
+        self.rs = positive_friction.sum()
+        if agg:
+            return self.rs
+        return positive_friction
+
+    def pile_tip_resistance(self, agg=True):
+        """
+        Determine pile tip resistance Rb.
+        Parameters
+        ----------
+        agg : bool
+            Influences return type.
+                True: aggregates the qc_1, qc_2, and qc_3 to Rb
+                False: Return R_b, qc_1, qc_2, qc_3
+
+        Returns
+        -------
+        out : Union[float, tuple[float]]
+        unit [MPa]
+            See agg parameter
+        """
+        self.rb, self.qc1, self.qc2, self.qc3 = bearing.compute_pile_tip_resistance(
+            ptl=self.pile_tip_level,
+            qc=self.df.qc.values,
+            depth=self.df.depth.values,
+            d_eq=self.d_eq,
+            alpha=self.alpha_p,
+            beta=self.beta_p,
+            s=self.pile_factor_s,
+            area=self.area,
+            return_q_components=True,
+        )
+        if agg:
+            return self.rb
+        else:
+            return self.rb, self.qc1, self.qc2, self.qc3
+
     def plot_pile_calculation(
         self, pile_tip_level, show=True, figsize=(6, 10), **kwargs
     ):
@@ -218,11 +335,6 @@ class PileCalculationLowerBound(PileCalculation):
             pile_factor_s,
         )
 
-    @property
-    def pile_tip_level_nap(self):
-        if self.pile_tip_level:
-            return depth_to_nap(self.pile_tip_level_nap, self.cpt.zid)
-
     def negative_friction(self, negative_friction_range=None, agg=True):
         """
         Determine negative friction.
@@ -256,17 +368,8 @@ class PileCalculationLowerBound(PileCalculation):
             self.negative_friction_slice = det_slice(
                 self.df.depth.values, negative_friction_range
             )
-        negative_friction = bearing.negative_friction(
-            depth=self.df.depth.values[self.negative_friction_slice],
-            grain_pressure=self.df.grain_pressure.values[self.negative_friction_slice],
-            circum=self.circum,
-            phi=self.df.phi[self.negative_friction_slice],
-            gamma_m=self.gamma_m,
-        )
-        self.nk = negative_friction.sum()
-        if agg:
-            return self.nk
-        return negative_friction
+
+        return super().negative_friction(negative_friction_range, agg)
 
     def positive_friction(
         self, positive_friction_range=None, agg=True, conservative=False
@@ -305,55 +408,8 @@ class PileCalculationLowerBound(PileCalculation):
             )
             idx_tp = np.argmin(np.abs(self.df.depth.values - tipping_point))
             self.positive_friction_slice = slice(idx_tp, self._idx_ptl)
-        else:
-            self.positive_friction_slice = det_slice(
-                positive_friction_range, self.df.depth.values
-            )
-        self.chamfered_qc = bearing.chamfer_positive_friction(
-            self.df.qc.values, self.cpt.df.depth.values
-        )[self.positive_friction_slice]
-        positive_friction = bearing.positive_friction(
-            depth=self.df.depth.values[self.positive_friction_slice],
-            chamfered_qc=self.chamfered_qc,
-            circum=self.circum,
-            alpha_s=0.01,
-        )
-        self.rs = positive_friction.sum()
-        if agg:
-            return self.rs
-        return positive_friction
 
-    def pile_tip_resistance(self, agg=True):
-        """
-        Determine pile tip resistance Rb.
-        Parameters
-        ----------
-        agg : bool
-            Influences return type.
-                True: aggregates the qc_1, qc_2, and qc_3 to Rb
-                False: Return R_b, qc_1, qc_2, qc_3
-
-        Returns
-        -------
-        out : Union[float, tuple[float]]
-        unit [MPa]
-            See agg parameter
-        """
-        self.rb, self.qc1, self.qc2, self.qc3 = bearing.compute_pile_tip_resistance(
-            ptl=self.pile_tip_level,
-            qc=self.df.qc.values,
-            depth=self.df.depth.values,
-            d_eq=self.d_eq,
-            alpha=self.alpha_p,
-            beta=self.beta_p,
-            s=self.pile_factor_s,
-            area=self.area,
-            return_q_components=True,
-        )
-        if agg:
-            return self.rb
-        else:
-            return self.rb, self.qc1, self.qc2, self.qc3
+        return super().positive_friction(positive_friction_range, agg, conservative)
 
     def run_calculation(self, pile_tip_level):
         if isinstance(pile_tip_level, (int, float)):
