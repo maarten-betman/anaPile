@@ -255,6 +255,7 @@ class PileCalculation:
             self.merged_soil_properties.depth.values[self.negative_friction_slice],
             color="red",
         )
+
         fig.axes[0].plot(
             self.chamfered_qc,
             self.merged_soil_properties.depth[self.positive_friction_slice],
@@ -646,17 +647,60 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             self.rb,
             self.rs,
             curve_types[self.pile_system],
-            self.pile_load / 1e3,
+            min(
+                self.rs + self.rb - 0.001, self.pile_load / 1e3
+            ),  # cannot apply higher load than capacity
             self.d_eq,
         )
         return self.settlement_ptl
+
+    def _single_iter(
+        self,
+        positive_friction_parent,
+        negative_friction_parent,
+        depth,
+        original_grain_pressure,
+    ):
+        # fill array with positive friction and negative friction values.
+        # These arrays are used to determine the elastic elongation of the pile.
+
+        # Determine positive friction
+        positive_friction = np.zeros_like(depth)
+        positive_friction[
+            self.positive_friction_slice
+        ] = positive_friction_parent.positive_friction(self, agg=False)
+
+        # Determine negative friction
+        negative_friction = np.zeros_like(depth)
+        negative_friction[
+            self.negative_friction_slice
+        ] = negative_friction_parent.negative_friction(self, agg=False)
+
+        elastic_elongation = settlement.pile.elastic_elongation(
+            self.elastic_modulus_pile,
+            self.area,
+            self.pile_load / 1e3,
+            depth,
+            negative_friction,
+            positive_friction,
+        )
+
+        # Settlement at pile tip level
+        pile_settlement_ptl = self.pile_settlement_ptl()
+
+        grain_pressure = original_grain_pressure + positive_friction - negative_friction
+        soil_settlement = self.soil_settlement(grain_pressure)
+        total_settlement_pile = np.cumsum(elastic_elongation) + pile_settlement_ptl
+        return soil_settlement, total_settlement_pile
 
     def find_friction_tipping_point(self):
         # first iteration no rs is known, so we take the lower bound method.
         negative_friction_parent = PileCalculationLowerBound
         positive_friction_parent = PileCalculationLowerBound
 
-        original_grain_pressure = self.merged_soil_properties.grain_pressure.values[: self._idx_ptl]
+        original_grain_pressure = self.merged_soil_properties.grain_pressure.values[
+            : self._idx_ptl
+        ]
 
         # slice until pile tip level
         depth = self.merged_soil_properties.depth[: self._idx_ptl]
@@ -664,40 +708,12 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         last_state = np.inf
 
         for i in range(10):
-            # fill array with positive friction and negative friction values.
-            # These arrays are used to determine the elastic elongation of the pile.
-
-            # Determine positive friction
-            positive_friction = np.zeros_like(depth)
-            # note that slices are set jit :-).
-            positive_friction[
-                self.positive_friction_slice
-            ] = positive_friction_parent.positive_friction(self, agg=False)
-
-            # Determine negative friction
-            negative_friction = np.zeros_like(depth)
-            # note that slices are set jit :-).
-            negative_friction[
-                self.negative_friction_slice
-            ] = negative_friction_parent.negative_friction(self, agg=False)
-
-            elastic_elongation = settlement.pile.elastic_elongation(
-                self.elastic_modulus_pile,
-                self.area,
-                self.pile_load / 1e3,
+            soil_settlement, total_settlement_pile = self._single_iter(
+                positive_friction_parent,
+                negative_friction_parent,
                 depth,
-                negative_friction,
-                positive_friction,
+                original_grain_pressure,
             )
-
-            # Settlement at pile tip level
-            pile_settlement_ptl = self.pile_settlement_ptl()
-
-            grain_pressure = (
-                original_grain_pressure + positive_friction - negative_friction
-            )
-            soil_settlement = self.soil_settlement(grain_pressure)
-            total_settlement_pile = np.cumsum(elastic_elongation) + pile_settlement_ptl
 
             if i == 0:
                 negative_friction_parent = PileCalculation
@@ -708,10 +724,15 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             self.positive_friction_slice = slice(tipping_idx, len(depth))
             self.negative_friction_slice = slice(0, tipping_idx)
 
-            state = int(signs[signs < 0].sum())
-            if last_state == state:
+            if last_state == tipping_idx:
                 break
-            last_state = state
+            last_state = tipping_idx
+        return self._single_iter(
+            positive_friction_parent,
+            negative_friction_parent,
+            depth,
+            original_grain_pressure,
+        )
 
     def run_calculation(self, pile_tip_level):
         """
@@ -734,4 +755,3 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             self.find_friction_tipping_point()
             self.nk_.append(self.nk)
             self.rs_.append(self.rs)
-

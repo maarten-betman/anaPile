@@ -165,8 +165,8 @@ class TestSettlementCalculation(TestCase):
             self.circum,
             self.area,
             self.layer_table,
-            pile_load=700,
-            soil_load=2,
+            pile_load=1500,
+            soil_load=1,
             pile_system='soil-displacement',
             ocr=1,
             elastic_modulus_pile=30e3,
@@ -179,5 +179,5 @@ class TestSettlementCalculation(TestCase):
         )
 
     def test_(self):
-        self.calc.run_calculation(-10)
+        self.calc.plot_pile_calculation(-10)
 
