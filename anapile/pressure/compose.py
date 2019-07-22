@@ -3,7 +3,6 @@ from anapile.pressure import bearing
 from anapile.geo import soil
 import numpy as np
 import matplotlib.pyplot as plt
-import abc
 import pandas as pd
 
 
@@ -299,9 +298,31 @@ class PileCalculation:
             }
         )
 
-    @abc.abstractmethod
     def run_calculation(self, pile_tip_level):
-        raise NotImplementedError
+        if isinstance(pile_tip_level, (int, float)):
+            pile_tip_level = [pile_tip_level]
+
+        self.rb_ = []
+        self.qc1_ = []
+        self.qc2_ = []
+        self.qc3_ = []
+        self.rs_ = []
+        self.rb_ = []
+        self.nk_ = []
+        self.pile_tip_level_ = np.array(pile_tip_level)
+
+        for ptl in pile_tip_level:
+            self._set_ptl(ptl)
+            self.nk_.append(self.negative_friction())
+            self.rs_.append(self.positive_friction())
+            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
+            self.rb_.append(rb)
+            self.qc1_.append(qc1)
+            self.qc2_.append(qc2)
+            self.qc3_.append(qc3)
+        self.rs_ = np.array(self.rs_)
+        self.rb_ = np.array(self.rb_)
+        self.nk_ = np.array(self.nk_)
 
 
 class PileCalculationLowerBound(PileCalculation):
@@ -410,32 +431,6 @@ class PileCalculationLowerBound(PileCalculation):
             self.positive_friction_slice = slice(idx_tp, self._idx_ptl)
 
         return super().positive_friction(positive_friction_range, agg, conservative)
-
-    def run_calculation(self, pile_tip_level):
-        if isinstance(pile_tip_level, (int, float)):
-            pile_tip_level = [pile_tip_level]
-
-        self.rb_ = []
-        self.qc1_ = []
-        self.qc2_ = []
-        self.qc3_ = []
-        self.rs_ = []
-        self.rb_ = []
-        self.nk_ = []
-        self.pile_tip_level_ = np.array(pile_tip_level)
-
-        for ptl in pile_tip_level:
-            self._set_ptl(ptl)
-            self.nk_.append(self.negative_friction())
-            self.rs_.append(self.positive_friction())
-            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
-            self.rb_.append(rb)
-            self.qc1_.append(qc1)
-            self.qc2_.append(qc2)
-            self.qc3_.append(qc3)
-        self.rs_ = np.array(self.rs_)
-        self.rb_ = np.array(self.rb_)
-        self.nk_ = np.array(self.nk_)
 
 
 def det_slice(single_range, a):
