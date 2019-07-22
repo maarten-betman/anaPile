@@ -1,11 +1,12 @@
 from anapile.settlement import fitted_curves
 from scipy import interpolate
 from scipy.optimize import root_scalar
+import numpy as np
 
 
 def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     """
-    Determine the settlement of the pile at the base.
+    Determine the settlement of the pile at the base (pile tip level).
 
     Parameters
     ----------
@@ -58,3 +59,18 @@ def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     sol = root_scalar(optim_f, bracket=[0, 900], method="brentq")
 
     return sol.root / 1000, f_rb(sol.root) / rb, f_rs(sol.root) / rs
+
+
+def elastic_elongation(elastic_modulus, area, pile_force_sls, depth, negative_friction, positive_friction):
+    # MN to stress
+    # * 1e6 -> N / (area * 1e6) mm2
+    # MN / m2
+
+    # forces along pile
+    forces = np.ones_like(depth) * pile_force_sls + positive_friction - negative_friction
+    stress = forces / area
+    strain = stress / elastic_modulus
+
+    h = np.diff(depth)
+    h = np.r_[depth[0], h]
+    return strain * h

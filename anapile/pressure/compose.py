@@ -102,6 +102,26 @@ class PileCalculation:
             np.abs(self.cpt.df.depth.values - self.pile_tip_level)
         )
 
+    def _init_calculation(self, pile_tip_level):
+        """
+        reset calculation results and set parameters.
+
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+        """
+        if isinstance(pile_tip_level, (int, float)):
+            pile_tip_level = [pile_tip_level]
+
+        self.rb_ = []
+        self.qc1_ = []
+        self.qc2_ = []
+        self.qc3_ = []
+        self.rs_ = []
+        self.rb_ = []
+        self.nk_ = []
+        self.pile_tip_level_ = np.array(pile_tip_level)
+
     @property
     def pile_tip_level_nap(self):
         if self.pile_tip_level:
@@ -339,19 +359,16 @@ class PileCalculation:
         )
 
     def run_calculation(self, pile_tip_level):
-        if isinstance(pile_tip_level, (int, float)):
-            pile_tip_level = [pile_tip_level]
+        """
+        Run a calculation and set result attributes.
 
-        self.rb_ = []
-        self.qc1_ = []
-        self.qc2_ = []
-        self.qc3_ = []
-        self.rs_ = []
-        self.rb_ = []
-        self.nk_ = []
-        self.pile_tip_level_ = np.array(pile_tip_level)
-
-        for ptl in pile_tip_level:
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+            Pile tip level in [m NAP]
+        """
+        self._init_calculation(pile_tip_level)
+        for ptl in self.pile_tip_level_:
             self._set_ptl(ptl)
             self.nk_.append(self.negative_friction())
             self.rs_.append(self.positive_friction())
@@ -511,7 +528,7 @@ def det_slice(single_range, a):
     return slice(idx_start, idx_end)
 
 
-class PileCalculationSettlementDriven(PileCalculation):
+class PileCalculationSettlementDriven(PileCalculationLowerBound):
     def __init__(
         self,
         cpt,
@@ -521,6 +538,10 @@ class PileCalculationSettlementDriven(PileCalculation):
         layer_table,
         pile_load,
         soil_load,
+        pile_system="soil-displacement",
+        ocr=1.0,
+        elastic_modulus_pile=30e3,
+        settlement_time_in_days=int(10e3),
         alpha_s=0.01,
         gamma_m=1.0,
         alpha_p=0.7,
@@ -542,11 +563,21 @@ class PileCalculationSettlementDriven(PileCalculation):
         layer_table : DataFrame
             Classification as defined in `tests/files/layer_table.csv`
         pile_load : float
-            Force on pile in [kN]
+            Force on pile in SLS [kN]
             Used to determine settlement of pile w.r.t. soil.
         soil_load : float
             (Fictive) load in [MPa] on soil used to calculation soil settlement.
             This is required and used to determine settlement of pile w.r.t. soil.
+        pile_system : str
+            - 'soil-distplacement'
+            - 'little-soil-displacement'
+            - 'drilled pile'
+        ocr : float
+            Over consolidation ratio, used in soil settlement calculation.
+        elastic_modulus_pile : float
+            Elastic modulus of the pile, used in settlement calculation.
+        settlement_time_in_days : int
+            Time t in days, used in Koppejan settlement calculation.
         alpha_s : float
             Alpha s factor used in positive friction calculation.
         gamma_m : float
@@ -572,5 +603,135 @@ class PileCalculationSettlementDriven(PileCalculation):
         )
         self.pile_load = pile_load
         self.soil_load = soil_load
+        self.ocr = ocr
+        self.settlement_time_in_days = settlement_time_in_days
+        self.pile_system = pile_system
+        self.elastic_modulus_pile = elastic_modulus_pile
 
+        # results
+        self.settlement_soil = None
+        self.settlement_ptl = None
+
+    def soil_settlement(self, grain_pressure=None):
+        u2 = geo.soil.estimate_water_pressure(self.cpt, self.merged_soil_properties)[
+            : self._idx_ptl
+        ]
+
+        if grain_pressure is None:
+            grain_pressure = geo.soil.grain_pressure(
+                self.merged_soil_properties.depth.values[: self._idx_ptl],
+                self.merged_soil_properties.gamma_sat.values[: self._idx_ptl],
+                self.merged_soil_properties.gamma.values[: self._idx_ptl],
+                u2,
+            )
+
+        self.settlement_soil = settlement.soil.settlement_over_depth(
+            self.merged_soil_properties.C_s.values[: self._idx_ptl],
+            self.merged_soil_properties.C_p.values[: self._idx_ptl],
+            self.merged_soil_properties.depth.values[: self._idx_ptl],
+            grain_pressure,
+            self.settlement_time_in_days,
+            self.soil_load,
+            self.ocr,
+        )
+        return self.settlement_soil
+
+    def pile_settlement_ptl(self):
+        curve_types = {
+            "soil-displacement": 1,
+            "little-soil-displacement": 2,
+            "drilled pile": 3,
+        }
+        self.settlement_ptl, _, _ = settlement.pile.pile_settlement(
+            self.rb,
+            self.rs,
+            curve_types[self.pile_system],
+            self.pile_load / 1e3,
+            self.d_eq,
+        )
+        return self.settlement_ptl
+
+    def find_friction_tipping_point(self):
+        # first iteration no rs is known, so we take the lower bound method.
+        negative_friction_parent = PileCalculationLowerBound
+        positive_friction_parent = PileCalculationLowerBound
+
+        original_grain_pressure = self.merged_soil_properties.grain_pressure.values[: self._idx_ptl]
+
+        # slice until pile tip level
+        depth = self.merged_soil_properties.depth[: self._idx_ptl]
+
+        last_state = np.inf
+
+        for i in range(10):
+            # fill array with positive friction and negative friction values.
+            # These arrays are used to determine the elastic elongation of the pile.
+
+            # Determine positive friction
+            positive_friction = np.zeros_like(depth)
+            # note that slices are set jit :-).
+            positive_friction[
+                self.positive_friction_slice
+            ] = positive_friction_parent.positive_friction(self, agg=False)
+
+            # Determine negative friction
+            negative_friction = np.zeros_like(depth)
+            # note that slices are set jit :-).
+            negative_friction[
+                self.negative_friction_slice
+            ] = negative_friction_parent.negative_friction(self, agg=False)
+
+            elastic_elongation = settlement.pile.elastic_elongation(
+                self.elastic_modulus_pile,
+                self.area,
+                self.pile_load / 1e3,
+                depth,
+                negative_friction,
+                positive_friction,
+            )
+
+            # Settlement at pile tip level
+            pile_settlement_ptl = self.pile_settlement_ptl()
+
+            grain_pressure = (
+                original_grain_pressure + positive_friction - negative_friction
+            )
+            soil_settlement = self.soil_settlement(grain_pressure)
+            total_settlement_pile = np.cumsum(elastic_elongation) + pile_settlement_ptl
+
+            if i == 0:
+                negative_friction_parent = PileCalculation
+                positive_friction_parent = PileCalculation
+
+            signs = np.sign(total_settlement_pile - soil_settlement)
+            tipping_idx = np.argwhere(np.diff(signs) > 0).flatten()[0]
+            self.positive_friction_slice = slice(tipping_idx, len(depth))
+            self.negative_friction_slice = slice(0, tipping_idx)
+
+            state = int(signs[signs < 0].sum())
+            if last_state == state:
+                break
+            last_state = state
+
+    def run_calculation(self, pile_tip_level):
+        """
+        Run a calculation and set result attributes.
+
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+            Pile tip level in [m NAP]
+
+        """
+        self._init_calculation(pile_tip_level)
+        for ptl in self.pile_tip_level_:
+            self._set_ptl(ptl)
+            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
+            self.rb_.append(rb)
+            self.qc1_.append(qc1)
+            self.qc2_.append(qc2)
+            self.qc3_.append(qc3)
+            self.find_friction_tipping_point()
+            self.nk_.append(self.nk)
+            self.rs_.append(self.rs)
 

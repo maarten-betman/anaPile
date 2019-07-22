@@ -148,3 +148,36 @@ class Pressure(TestCase):
         )
 
         self.assertAlmostEqual(thickness[0], 14.354)
+
+
+class TestSettlementCalculation(TestCase):
+    pile_width = 0.25
+    circum = pile_width * 4
+    area = pile_width ** 2
+    d_eq = 1.13 * pile_width
+
+    def setUp(self) -> None:
+        self.gef = ParseGEF('files/example.gef')
+        self.layer_table = pd.read_csv('files/layer_table.csv')
+        self.calc = PileCalculationSettlementDriven(
+            self.gef,
+            self.d_eq,
+            self.circum,
+            self.area,
+            self.layer_table,
+            pile_load=700,
+            soil_load=2,
+            pile_system='soil-displacement',
+            ocr=1,
+            elastic_modulus_pile=30e3,
+            settlement_time_in_days=int(1e10),
+            alpha_s=0.01,
+            gamma_m=1,
+            alpha_p=1,
+            beta_p=1,
+            pile_factor_s=1
+        )
+
+    def test_(self):
+        self.calc.run_calculation(-10)
+
