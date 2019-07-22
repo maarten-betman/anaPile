@@ -175,6 +175,7 @@ class PileCalculation:
                 "negative_friction": self.nk_ * 1000,
                 "Rs": self.rs_ * 1000,
                 "Rb": self.rb_ * 1000,
+                "Rcal": (self.rs_ + self.rb_ - self.nk_) * 1000,
                 "qc1": self.qc1_,
                 "qc2": self.qc2_,
                 "qc3": self.qc3_,
