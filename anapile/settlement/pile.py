@@ -10,9 +10,9 @@ def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     Parameters
     ----------
     rb : float
-        Resistance at the base
+        Resistance at the base in [MN]
     rs : float
-        Resistance at the shaft
+        Resistance at the shaft in [MN]
     curve_type : int
         Which type of curve to use, determined by the pile type.
     pile_force_sls : float
@@ -23,9 +23,14 @@ def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     Returns
     -------
     out : tuple
-        Settlement at the base of the pile in [mm], ratio of hte base resistance, ratio of the shaft resistance
+        Settlement at the base of the pile in [m],
+        ratio of the base resistance,
+        ratio of the shaft resistance
 
     """
+    rb *= 1e3
+    rs *= 1e3
+    pile_force_sls *= 1e3
     if curve_type == 1:
         rs_ratio = fitted_curves.rs_rs_max_type_1
         rb_ratio = fitted_curves.rb_rb_max_type_1
@@ -50,6 +55,6 @@ def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     def optim_f(x):
         return f_rs(x) + f_rb(x) - pile_force_sls
 
-    sol = root_scalar(optim_f, bracket=[0, 900], method='brentq')
+    sol = root_scalar(optim_f, bracket=[0, 900], method="brentq")
 
-    return sol.root, f_rb(sol.root) / rb, f_rs(sol.root) / rs
+    return sol.root / 1000, f_rb(sol.root) / rb, f_rs(sol.root) / rs
