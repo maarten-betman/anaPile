@@ -750,7 +750,11 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
                 positive_friction_parent = PileCalculation
 
             signs = np.sign(total_settlement_pile - soil_settlement)
-            tipping_idx = np.argwhere(np.diff(signs) > 0).flatten()[0]
+            idx = np.argwhere(np.diff(signs) > 0).flatten()
+            if len(idx) > 0:
+                tipping_idx = idx[0]
+            else:
+                tipping_idx = len(depth)
             self.positive_friction_slice = slice(tipping_idx, len(depth))
             self.negative_friction_slice = slice(0, tipping_idx)
 

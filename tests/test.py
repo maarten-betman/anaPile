@@ -187,6 +187,7 @@ class TestSettlementCalculation(TestCase):
 
     def test_(self):
         self.calc.plot_pile_calculation(-12)
+        self.calc.plot_pile_calculation(np.linspace(0, -17), figsize=(10, 10))
 
 
 if __name__ == '__main__':
