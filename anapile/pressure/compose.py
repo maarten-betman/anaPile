@@ -268,13 +268,17 @@ class PileCalculation:
     def _plot_single(self, fig):
         fig.axes[0].plot(
             self.merged_soil_properties.qc.values[self.negative_friction_slice],
-            self.merged_soil_properties.elevation_with_respect_to_NAP.values[self.negative_friction_slice],
+            self.merged_soil_properties.elevation_with_respect_to_NAP.values[
+                self.negative_friction_slice
+            ],
             color="red",
         )
 
         fig.axes[0].plot(
             self.chamfered_qc,
-            self.merged_soil_properties.elevation_with_respect_to_NAP[self.positive_friction_slice],
+            self.merged_soil_properties.elevation_with_respect_to_NAP[
+                self.positive_friction_slice
+            ],
             color="lightgreen",
             lw=3,
         )
@@ -334,12 +338,30 @@ class PileCalculation:
         plt.grid()
 
     def plot_pile_calculation(
-        self, pile_tip_level, show=True, figsize=(6, 10), n_subplots=2, **kwargs
+        self, pile_tip_level, show=True, figsize=(6, 10), n_subplots=0, **kwargs
     ):
+        """
+
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+            Pile tip level in [m NAP]
+        show : bool
+            call plt.show()
+        figsize : tuple
+            matplotlib figure size.
+        n_subplots : int
+            Number of extra subplots appended to the right of the figure.
+        kwargs
+
+        Returns
+        -------
+
+        """
         self.run_calculation(pile_tip_level)
         single_level = isinstance(pile_tip_level, (int, float))
 
-        n_subplots = max(n_subplots, 2) if single_level else max(n_subplots, 3)
+        n_subplots = 2 + n_subplots if single_level else 3 + n_subplots
 
         fig = self._plot_base(pile_tip_level, figsize, n_subplots, **kwargs)
 
@@ -551,7 +573,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         ocr=1.0,
         elastic_modulus_pile=30e3,
         settlement_time_in_days=int(10e3),
-        alpha_s=0.01,
+        alpha_s=0.00,
         gamma_m=1.0,
         alpha_p=0.7,
         beta_p=1.0,
@@ -741,3 +763,26 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             depth,
             original_grain_pressure,
         )
+
+    def run_calculation(self, pile_tip_level):
+        """
+        Run a calculation and set result attributes.
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+            Pile tip level in [m NAP]
+        """
+        self._init_calculation(pile_tip_level)
+        for ptl in self.pile_tip_level_:
+            self._set_ptl(ptl)
+            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
+            self.rb_.append(rb)
+            self.qc1_.append(qc1)
+            self.qc2_.append(qc2)
+            self.qc3_.append(qc3)
+            self.find_friction_tipping_point()
+            self.nk_.append(self.nk)
+            self.rs_.append(self.rs)
+        self.rs_ = np.array(self.rs_)
+        self.rb_ = np.array(self.rb_)
+        self.nk_ = np.array(self.nk_)

@@ -1,5 +1,6 @@
 from pygef import ParseGEF, nap_to_depth
 from unittest import TestCase
+import unittest
 from anapile import settlement
 from anapile.pressure import bearing
 from anapile.geo import soil
@@ -17,6 +18,9 @@ class Pressure(TestCase):
         self.gef = ParseGEF("files/example.gef")
         self.soil_prop = pd.read_csv("files/soil_prop_example.csv")
         self.layer_table = pd.read_csv("files/layer_table.csv")
+
+    def tearDown(self) -> None:
+        plt.close('all')
 
     def test_pile_tip_resistance(self):
         f = partial(
@@ -126,7 +130,6 @@ class Pressure(TestCase):
             df.depth.values[s], df.grain_pressure.values[s], 0.25 * 4, df.phi.values[s]
         )
         deviation = abs(1 - 19.355 / (f.sum() * 1000))
-        print(deviation)
         self.assertTrue(deviation < 1e-2)
 
     def test_find_last_sand_layer(self):
@@ -167,7 +170,7 @@ class TestSettlementCalculation(TestCase):
             self.area,
             self.layer_table,
             pile_load=1500,
-            soil_load=1,
+            soil_load=0.01,
             pile_system='soil-displacement',
             ocr=1,
             elastic_modulus_pile=30e3,
@@ -179,7 +182,12 @@ class TestSettlementCalculation(TestCase):
             pile_factor_s=1
         )
 
-    def test_(self):
-        self.calc.plot_pile_calculation(-10)
-        self.calc.plot_pile_calculation(np.linspace(0, -17), figsize=(10, 10))
+    def tearDown(self) -> None:
+        plt.close('all')
 
+    def test_(self):
+        self.calc.plot_pile_calculation(-12)
+
+
+if __name__ == '__main__':
+    unittest.main()
