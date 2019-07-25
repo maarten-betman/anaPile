@@ -597,7 +597,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             Force on pile in SLS [kN]
             Used to determine settlement of pile w.r.t. soil.
         soil_load : float
-            (Fictive) load in [MPa] on soil used to calculation soil settlement.
+            (Fictive) load in [kPa] on soil used to calculation soil settlement.
             This is required and used to determine settlement of pile w.r.t. soil.
         pile_system : str
             - 'soil-distplacement'
@@ -662,7 +662,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             self.merged_soil_properties.depth.values[: self._idx_ptl],
             grain_pressure,
             self.settlement_time_in_days,
-            self.soil_load,
+            self.soil_load / 1e3,
             self.ocr,
         )
         return self.settlement_soil

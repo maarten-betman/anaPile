@@ -170,7 +170,7 @@ class TestSettlementCalculation(TestCase):
             self.area,
             self.layer_table,
             pile_load=1500,
-            soil_load=0.01,
+            soil_load=10,
             pile_system='soil-displacement',
             ocr=1,
             elastic_modulus_pile=30e3,
