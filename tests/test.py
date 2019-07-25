@@ -126,6 +126,7 @@ class Pressure(TestCase):
             df.depth.values[s], df.grain_pressure.values[s], 0.25 * 4, df.phi.values[s]
         )
         deviation = abs(1 - 19.355 / (f.sum() * 1000))
+        print(deviation)
         self.assertTrue(deviation < 1e-2)
 
     def test_find_last_sand_layer(self):
@@ -180,4 +181,5 @@ class TestSettlementCalculation(TestCase):
 
     def test_(self):
         self.calc.plot_pile_calculation(-10)
+        self.calc.plot_pile_calculation(np.linspace(0, -17), figsize=(10, 10))
 

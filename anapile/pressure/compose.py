@@ -125,7 +125,7 @@ class PileCalculation:
     @property
     def pile_tip_level_nap(self):
         if self.pile_tip_level:
-            return depth_to_nap(self.pile_tip_level_nap, self.cpt.zid)
+            return depth_to_nap(self.pile_tip_level, self.cpt.zid)
 
     def negative_friction(self, negative_friction_range=None, agg=True):
         """
@@ -245,30 +245,46 @@ class PileCalculation:
         else:
             return self.rb, self.qc1, self.qc2, self.qc3
 
-    def plot_pile_calculation(
-        self, pile_tip_level, show=True, figsize=(6, 10), **kwargs
-    ):
+    def _plot_base(self, pile_tip_level, figsize, n_subplots=3, **kwargs):
         self.run_calculation(pile_tip_level)
-        fig = self.cpt.plot(figsize=figsize, **kwargs, show=False)
+
+        fig = plt.figure(figsize=figsize, **kwargs)
+        fig.add_subplot(1, n_subplots, 1)
+        plt.ylabel("Depth [m]")
+        plt.xlabel("qc [MPa]")
+        plt.plot(
+            self.cpt.df.qc.values, self.cpt.df.elevation_with_respect_to_NAP.values
+        )
+        plt.grid()
+        fig.add_subplot(1, n_subplots, 2)
+        plt.xlabel("friction number [%]")
+        plt.plot(
+            self.cpt.df.friction_number.values,
+            self.cpt.df.elevation_with_respect_to_NAP.values,
+        )
+        plt.grid()
+        return fig
+
+    def _plot_single(self, fig):
         fig.axes[0].plot(
             self.merged_soil_properties.qc.values[self.negative_friction_slice],
-            self.merged_soil_properties.depth.values[self.negative_friction_slice],
+            self.merged_soil_properties.elevation_with_respect_to_NAP.values[self.negative_friction_slice],
             color="red",
         )
 
         fig.axes[0].plot(
             self.chamfered_qc,
-            self.merged_soil_properties.depth[self.positive_friction_slice],
+            self.merged_soil_properties.elevation_with_respect_to_NAP[self.positive_friction_slice],
             color="lightgreen",
             lw=3,
         )
-        fig.axes[0].hlines(self.pile_tip_level, 0, fig.axes[0].get_xlim()[1])
+        fig.axes[0].hlines(self.pile_tip_level_nap, 0, fig.axes[0].get_xlim()[1])
 
         factor_horizontal = 0.4
 
         fig.axes[0].text(
             factor_horizontal * fig.axes[0].get_xlim()[1],
-            self.pile_tip_level * 1.1,
+            self.pile_tip_level_nap * 1.1,
             "$R_b$: {:3.2f} kN\nptl: {:3.2f} m NAP".format(
                 self.rb * 1000, depth_to_nap(self.pile_tip_level, self.cpt.zid)
             ),
@@ -276,14 +292,14 @@ class PileCalculation:
 
         fig.axes[0].text(
             factor_horizontal * fig.axes[0].get_xlim()[1],
-            self.merged_soil_properties.depth.values[
+            self.merged_soil_properties.elevation_with_respect_to_NAP.values[
                 self.negative_friction_slice
             ].mean(),
             "$N_{{friction}}$: {:3.2f} kN".format(self.nk * 1000),
         )
         fig.axes[0].text(
             factor_horizontal * fig.axes[0].get_xlim()[1],
-            self.merged_soil_properties.depth.values[
+            self.merged_soil_properties.elevation_with_respect_to_NAP.values[
                 self.positive_friction_slice
             ].mean(),
             "$R_s$: {:3.2f} kN".format(self.rs * 1000),
@@ -293,31 +309,8 @@ class PileCalculation:
             "$R_{{cal}}$: {:3.2f} kN".format(sum([self.rs, self.rb, -self.nk]) * 1000)
         )
 
-        if show:
-            plt.show()
-        return fig
-
-    def plot_pile_calculation_range(
-        self, pile_tip_level, show=True, figsize=(9, 10), **kwargs
-    ):
-        self.run_calculation(pile_tip_level)
-
-        fig = plt.figure(figsize=figsize, **kwargs)
-        fig.add_subplot(1, 3, 1)
-        plt.ylabel("Depth [m]")
-        plt.xlabel("qc [MPa]")
-        plt.plot(
-            self.cpt.df.qc.values, self.cpt.df.elevation_with_respect_to_NAP.values
-        )
-        plt.grid()
-        fig.add_subplot(1, 3, 2)
-        plt.xlabel("friction number [%]")
-        plt.plot(
-            self.cpt.df.friction_number.values,
-            self.cpt.df.elevation_with_respect_to_NAP.values,
-        )
-        plt.grid()
-        fig.add_subplot(1, 3, 3)
+    def _plot_range(self, fig, n_subplots):
+        fig.add_subplot(1, n_subplots, 3)
         plt.plot(
             -self.nk_ * 1e3, self.pile_tip_level_, color="red", label=r"$N_{friction}$"
         )
@@ -339,6 +332,21 @@ class PileCalculation:
         )
         plt.legend(bbox_to_anchor=(1, 1), loc="upper left")
         plt.grid()
+
+    def plot_pile_calculation(
+        self, pile_tip_level, show=True, figsize=(6, 10), n_subplots=2, **kwargs
+    ):
+        self.run_calculation(pile_tip_level)
+        single_level = isinstance(pile_tip_level, (int, float))
+
+        n_subplots = max(n_subplots, 2) if single_level else max(n_subplots, 3)
+
+        fig = self._plot_base(pile_tip_level, figsize, n_subplots, **kwargs)
+
+        if single_level:
+            self._plot_single(fig)
+        else:
+            self._plot_range(fig, n_subplots)
 
         if show:
             plt.show()
@@ -733,25 +741,3 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             depth,
             original_grain_pressure,
         )
-
-    def run_calculation(self, pile_tip_level):
-        """
-        Run a calculation and set result attributes.
-
-        Parameters
-        ----------
-        pile_tip_level : Union[np.array[float], float]
-            Pile tip level in [m NAP]
-
-        """
-        self._init_calculation(pile_tip_level)
-        for ptl in self.pile_tip_level_:
-            self._set_ptl(ptl)
-            rb, qc1, qc2, qc3 = self.pile_tip_resistance(agg=False)
-            self.rb_.append(rb)
-            self.qc1_.append(qc1)
-            self.qc2_.append(qc2)
-            self.qc3_.append(qc3)
-            self.find_friction_tipping_point()
-            self.nk_.append(self.nk)
-            self.rs_.append(self.rs)

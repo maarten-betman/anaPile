@@ -1,6 +1,7 @@
 import numpy as np
 from pygef import nap_to_depth
 import re
+import pandas as pd
 
 WATER_PRESSURE = .00981
 
@@ -88,7 +89,9 @@ def join_cpt_with_classification(cpt, layer_table):
     """
     df = cpt.df.assign(rounded_depth=cpt.df.depth.values.round(1))
     layer_table = layer_table.assign(rounded_depth=layer_table.depth_btm.values.round(1))
-    soil_properties = df.merge(layer_table, how='left', on='rounded_depth')
+    if 'elevation_with_respect_to_NAP' in layer_table.columns:
+        layer_table = layer_table.drop('elevation_with_respect_to_NAP', axis=1)
+    soil_properties = pd.merge_asof(df, layer_table, on='rounded_depth', tolerance=1e-3)
     soil_properties = soil_properties.fillna(method='bfill').dropna()
     u2 = estimate_water_pressure(cpt, soil_properties)
 
