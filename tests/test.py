@@ -20,7 +20,7 @@ class Pressure(TestCase):
         self.layer_table = pd.read_csv("files/layer_table.csv")
 
     def tearDown(self) -> None:
-        plt.close('all')
+        plt.close("all")
 
     def test_pile_tip_resistance(self):
         f = partial(
@@ -161,8 +161,8 @@ class TestSettlementCalculation(TestCase):
     d_eq = 1.13 * pile_width
 
     def setUp(self) -> None:
-        self.gef = ParseGEF('files/example.gef')
-        self.layer_table = pd.read_csv('files/layer_table.csv')
+        self.gef = ParseGEF("files/example.gef")
+        self.layer_table = pd.read_csv("files/layer_table.csv")
         self.calc = PileCalculationSettlementDriven(
             self.gef,
             self.d_eq,
@@ -171,7 +171,7 @@ class TestSettlementCalculation(TestCase):
             self.layer_table,
             pile_load=1500,
             soil_load=10,
-            pile_system='soil-displacement',
+            pile_system="soil-displacement",
             ocr=1,
             elastic_modulus_pile=30e3,
             settlement_time_in_days=int(1e10),
@@ -179,16 +179,34 @@ class TestSettlementCalculation(TestCase):
             gamma_m=1,
             alpha_p=1,
             beta_p=1,
-            pile_factor_s=1
+            pile_factor_s=1,
         )
 
+        # Assert that tipping points are as yet  none
+        self.assertIsNone(self.calc.negative_friction_tipping_point_nap)
+        self.assertIsNone(self.calc.positive_friction_tipping_point_nap)
+
     def tearDown(self) -> None:
-        plt.close('all')
+        plt.close("all")
 
     def test_(self):
         self.calc.plot_pile_calculation(-12)
         self.calc.plot_pile_calculation(np.linspace(0, -17), figsize=(10, 10))
 
+        # Tipping points must be set by now, test
+        self.assertAlmostEqual(
+            self.calc.negative_friction_tipping_point_nap,
+            self.calc.merged_soil_properties.elevation_with_respect_to_NAP[
+                self.calc.negative_friction_slice.stop
+            ],
+        )
+        self.assertAlmostEqual(
+            self.calc.positive_friction_tipping_point_nap,
+            self.calc.merged_soil_properties.elevation_with_respect_to_NAP[
+                self.calc.positive_friction_slice.start
+            ],
+        )
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

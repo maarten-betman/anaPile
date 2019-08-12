@@ -127,6 +127,21 @@ class PileCalculation:
         if self.pile_tip_level:
             return depth_to_nap(self.pile_tip_level, self.cpt.zid)
 
+    @property
+    def negative_friction_tipping_point_nap(self):
+        """Tipping point for negative friction wrt. NAP"""
+        if self.negative_friction_slice:
+            return self.merged_soil_properties.elevation_with_respect_to_NAP[
+                self.negative_friction_slice.stop
+            ]
+
+    @property
+    def positive_friction_tipping_point_nap(self):
+        if self.positive_friction_slice:
+            return self.merged_soil_properties.elevation_with_respect_to_NAP[
+                self.positive_friction_slice.start
+            ]
+
     def negative_friction(self, negative_friction_range=None, agg=True):
         """
         Determine negative friction.

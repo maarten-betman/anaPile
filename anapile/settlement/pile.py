@@ -61,13 +61,17 @@ def pile_settlement(rb, rs, curve_type, pile_force_sls, deq):
     return sol.root / 1000, f_rb(sol.root) / rb, f_rs(sol.root) / rs
 
 
-def elastic_elongation(elastic_modulus, area, pile_force_sls, depth, negative_friction, positive_friction):
+def elastic_elongation(
+    elastic_modulus, area, pile_force_sls, depth, negative_friction, positive_friction
+):
     # MN to stress
     # * 1e6 -> N / (area * 1e6) mm2
     # MN / m2
 
     # forces along pile
-    forces = np.ones_like(depth) * pile_force_sls + positive_friction - negative_friction
+    forces = (
+        np.ones_like(depth) * pile_force_sls + positive_friction - negative_friction
+    )
     stress = forces / area
     strain = stress / elastic_modulus
 

@@ -1,7 +1,9 @@
 import numpy as np
 
 
-def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, area, return_q_components=False):
+def compute_pile_tip_resistance(
+    ptl, qc, depth, d_eq, alpha, beta, s, area, return_q_components=False
+):
     """
 
     Parameters
@@ -39,7 +41,7 @@ def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, area, retu
     d8i = np.argmin(np.abs(d8 - depth))
 
     # range from ppn to 4d
-    qc_range_ppn_4d = qc[ppni:d4i + 1]
+    qc_range_ppn_4d = qc[ppni : d4i + 1]
 
     # cumulative min from 4d back to ppn
     qc2_range = np.fmin.accumulate(qc_range_ppn_4d[::-1])[::-1]
@@ -59,7 +61,7 @@ def compute_pile_tip_resistance(ptl, qc, depth, d_eq, alpha, beta, s, area, retu
     qc2 = np.mean(qc2_range[:idx])
 
     # qc3 starts where qc2 is ended and accumulates the minimum again.
-    qc3_range = qc[d8i: ppni + 1].copy()
+    qc3_range = qc[d8i : ppni + 1].copy()
     qc3_range[-1] = qc2_range[0]
     qc3_range = np.fmin.accumulate(qc3_range[::-1])[::-1]
     qc3 = np.mean(qc3_range)
@@ -120,12 +122,14 @@ def chamfer_positive_friction(qc, depth):
                 # now find the closest indexes of that layer that are 12 MPa.
                 idx_closest_12_above = np.argwhere(qc[:idx_top] < 12).flatten()[-1]
                 try:
-                    idx_closest_12_below = np.argwhere(qc[idx_btm:] < 12).flatten()[0] + idx_btm
+                    idx_closest_12_below = (
+                        np.argwhere(qc[idx_btm:] < 12).flatten()[0] + idx_btm
+                    )
                 except IndexError:
                     idx_closest_12_below = idx_btm
 
                 # chamfer the layer.
-                qc[idx_closest_12_above: idx_closest_12_below] = 12
+                qc[idx_closest_12_above:idx_closest_12_below] = 12
 
             j = i + 1
 
@@ -174,7 +178,15 @@ def positive_friction(depth, chamfered_qc, circum, alpha_s=0.01):
     return np.append(force, force[-1])
 
 
-def negative_friction(depth, grain_pressure, circum, phi=None, delta=None, gamma_m=1.0, start_at_ground_level=True):
+def negative_friction(
+    depth,
+    grain_pressure,
+    circum,
+    phi=None,
+    delta=None,
+    gamma_m=1.0,
+    start_at_ground_level=True,
+):
     """
     Only pass masked arrays. You should determine which part of array negative friction occurs.
 

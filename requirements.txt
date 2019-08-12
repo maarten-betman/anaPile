@@ -1,3 +1,5 @@
+pre-commit
+black
 numpy
 pandas==0.24.2
 pygef

@@ -3,7 +3,7 @@ from pygef import nap_to_depth
 import re
 import pandas as pd
 
-WATER_PRESSURE = .00981
+WATER_PRESSURE = 0.00981
 
 
 def grain_pressure(depth, gamma_sat, gamma, u2=None):
@@ -60,7 +60,7 @@ def estimate_water_pressure(cpt, soil_properties=None):
     if soil_properties is None:
         soil_properties = cpt.df
 
-    if 'u2' in cpt.df.columns:
+    if "u2" in cpt.df.columns:
         u2 = soil_properties.u2.values
     elif cpt.groundwater_level is not None:
         water_depth = nap_to_depth(cpt.zid, cpt.groundwater_level)
@@ -88,17 +88,22 @@ def join_cpt_with_classification(cpt, layer_table):
 
     """
     df = cpt.df.assign(rounded_depth=cpt.df.depth.values.round(1))
-    layer_table = layer_table.assign(rounded_depth=layer_table.depth_btm.values.round(1))
-    if 'elevation_with_respect_to_NAP' in layer_table.columns:
-        layer_table = layer_table.drop('elevation_with_respect_to_NAP', axis=1)
-    soil_properties = pd.merge_asof(df, layer_table, on='rounded_depth', tolerance=1e-3)
-    soil_properties = soil_properties.fillna(method='bfill').dropna()
+    layer_table = layer_table.assign(
+        rounded_depth=layer_table.depth_btm.values.round(1)
+    )
+    if "elevation_with_respect_to_NAP" in layer_table.columns:
+        layer_table = layer_table.drop("elevation_with_respect_to_NAP", axis=1)
+    soil_properties = pd.merge_asof(df, layer_table, on="rounded_depth", tolerance=1e-3)
+    soil_properties = soil_properties.fillna(method="bfill").dropna()
     u2 = estimate_water_pressure(cpt, soil_properties)
 
-    soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
-                                                       soil_properties.gamma_sat.values, soil_properties.gamma.values,
-                                                       u2)
-    return soil_properties.drop(columns=['rounded_depth'])
+    soil_properties["grain_pressure"] = grain_pressure(
+        soil_properties.depth.values,
+        soil_properties.gamma_sat.values,
+        soil_properties.gamma.values,
+        u2,
+    )
+    return soil_properties.drop(columns=["rounded_depth"])
 
 
 def find_last_negative_friction_tipping_point(depth, soil_code):
@@ -117,7 +122,7 @@ def find_last_negative_friction_tipping_point(depth, soil_code):
     depth : float
         Depth of the bottom of the weak layers on top of the sand layers.
     """
-    m = re.compile(r'[VK]')
+    m = re.compile(r"[VK]")
     weak_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weak_layer == 1).flatten()
     if len(idx) == 0:
@@ -141,7 +146,7 @@ def find_positive_friction_tipping_point(depth, soil_code):
     depth : float
         Depth of the bottom of the weak layers on top of the sand layers.
     """
-    m = re.compile(r'[ZG][kv]|[VK]')
+    m = re.compile(r"[ZG][kv]|[VK]")
     weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weakish_layer == 1).flatten()
     if len(idx) == 0:
@@ -159,7 +164,7 @@ def determine_pile_tip_level(depth, soil_code, d_eq):
 
 
 def find_clean_sand_layers(thickness, soil_code, depth):
-    m = re.compile(r'[ZG][kv]|[VK]')
+    m = re.compile(r"[ZG][kv]|[VK]")
     weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
 
     # indexes of boundaries
@@ -170,9 +175,9 @@ def find_clean_sand_layers(thickness, soil_code, depth):
     btm_sand_layer = []
     for start, end in np.roll(np.repeat(layer_bounds, 2).reshape(-1, 2), 1)[1:, :]:
 
-        if 1 in weakish_layer[start: end]:
+        if 1 in weakish_layer[start:end]:
             continue
-        sand_thickness.append(thickness[start: end].sum())
+        sand_thickness.append(thickness[start:end].sum())
         top_sand_layer.append(depth[start])
 
     if 0 in weakish_layer[end:]:
