@@ -588,7 +588,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         ocr=1.0,
         elastic_modulus_pile=30e3,
         settlement_time_in_days=int(10e3),
-        alpha_s=0.00,
+        alpha_s=0.01,
         gamma_m=1.0,
         alpha_p=0.7,
         beta_p=1.0,
