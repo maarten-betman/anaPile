@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def settlement_over_depth(cs, cp, depth, sigma, t=10000, p=2., ocr=1.):
+def settlement_over_depth(cs, cp, depth, sigma, t=10000, p=2.0, ocr=1.0):
     """
     Koppejan settlement calculation. Parameters, p and sigma should be the same units.
 
@@ -34,7 +34,7 @@ def settlement_over_depth(cs, cp, depth, sigma, t=10000, p=2., ocr=1.):
     return np.append(cum_dh, cum_dh[-1])
 
 
-def koppejan(cs, cp, sigma, t=10000, p=2., ocr=1.):
+def koppejan(cs, cp, sigma, t=10000, p=2.0, ocr=1.0):
     """
     Koppejan settlement strain.
 
@@ -58,6 +58,7 @@ def koppejan(cs, cp, sigma, t=10000, p=2., ocr=1.):
     eps : float
         strain
     """
-    c_factor = 4.
-    return (1. / (cp * c_factor) + 1. / (cs * c_factor) * np.log10(t)) * np.log(sigma * ocr / sigma) + \
-           (1. / cp + 1. / cs * np.log10(t)) * np.log((sigma + p) / (sigma * ocr))
+    c_factor = 4.0
+    return (1.0 / (cp * c_factor) + 1.0 / (cs * c_factor) * np.log10(t)) * np.log(
+        sigma * ocr / sigma
+    ) + (1.0 / cp + 1.0 / cs * np.log10(t)) * np.log((sigma + p) / (sigma * ocr))

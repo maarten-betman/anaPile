@@ -4,7 +4,7 @@ import re
 import pandas as pd
 from anapile.utils import merge_df_on_float
 
-WATER_PRESSURE = .00981
+WATER_PRESSURE = 0.00981
 
 
 def grain_pressure(depth, gamma_sat, gamma, u2=None):
@@ -61,7 +61,7 @@ def estimate_water_pressure(cpt, soil_properties=None):
     if soil_properties is None:
         soil_properties = cpt.df
 
-    if 'u2' in cpt.df.columns:
+    if "u2" in cpt.df.columns:
         u2 = soil_properties.u2.values
     elif cpt.groundwater_level is not None:
         water_depth = nap_to_depth(cpt.zid, cpt.groundwater_level)
@@ -127,7 +127,7 @@ def find_last_negative_friction_tipping_point(depth, soil_code):
     depth : float
         Depth of the bottom of the weak layers on top of the sand layers.
     """
-    m = re.compile(r'[VK]')
+    m = re.compile(r"[VK]")
     weak_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weak_layer == 1).flatten()
     if len(idx) == 0:
@@ -151,7 +151,7 @@ def find_positive_friction_tipping_point(depth, soil_code):
     depth : float
         Depth of the bottom of the weak layers on top of the sand layers.
     """
-    m = re.compile(r'[ZG][kv]|[VK]')
+    m = re.compile(r"[ZG][kv]|[VK]")
     weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
     idx = np.argwhere(weakish_layer == 1).flatten()
     if len(idx) == 0:
@@ -169,7 +169,7 @@ def determine_pile_tip_level(depth, soil_code, d_eq):
 
 
 def find_clean_sand_layers(thickness, soil_code, depth):
-    m = re.compile(r'[ZG][kv]|[VK]')
+    m = re.compile(r"[ZG][kv]|[VK]")
     weakish_layer = np.array(list(map(lambda x: 1 if m.search(x) else 0, soil_code)))
 
     # indexes of boundaries
@@ -180,9 +180,9 @@ def find_clean_sand_layers(thickness, soil_code, depth):
     btm_sand_layer = []
     for start, end in np.roll(np.repeat(layer_bounds, 2).reshape(-1, 2), 1)[1:, :]:
 
-        if 1 in weakish_layer[start: end]:
+        if 1 in weakish_layer[start:end]:
             continue
-        sand_thickness.append(thickness[start: end].sum())
+        sand_thickness.append(thickness[start:end].sum())
         top_sand_layer.append(depth[start])
 
     if 0 in weakish_layer[end:]:
