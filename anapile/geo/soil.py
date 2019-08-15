@@ -2,6 +2,7 @@ import numpy as np
 from pygef import nap_to_depth
 import re
 import pandas as pd
+from anapile.utils import merge_df_on_float
 
 WATER_PRESSURE = .00981
 
@@ -87,18 +88,27 @@ def join_cpt_with_classification(cpt, layer_table):
         results from the layer_table.
 
     """
-    df = cpt.df.assign(rounded_depth=cpt.df.depth.values.round(1))
-    layer_table = layer_table.assign(rounded_depth=layer_table.depth_btm.values.round(1))
     if 'elevation_with_respect_to_NAP' in layer_table.columns:
         layer_table = layer_table.drop('elevation_with_respect_to_NAP', axis=1)
-    soil_properties = pd.merge_asof(df, layer_table, on='rounded_depth', tolerance=1e-3)
-    soil_properties = soil_properties.fillna(method='bfill').dropna()
+
+    if 'depth_btm' in layer_table.columns:
+        fill_method = 'bfill'
+        col = 'depth_btm'
+    else:
+        fill_method = 'ffill'
+        col = 'depth_top'
+
+    layer_table = layer_table.assign(depth=layer_table[col])
+    soil_properties = merge_df_on_float(cpt.df, layer_table,
+                                        on='depth', how='left')
+
+    soil_properties = soil_properties.fillna(method=fill_method).dropna()
     u2 = estimate_water_pressure(cpt, soil_properties)
 
     soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
                                                        soil_properties.gamma_sat.values, soil_properties.gamma.values,
                                                        u2)
-    return soil_properties.drop(columns=['rounded_depth'])
+    return soil_properties
 
 
 def find_last_negative_friction_tipping_point(depth, soil_code):
