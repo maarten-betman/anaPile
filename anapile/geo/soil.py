@@ -88,26 +88,35 @@ def join_cpt_with_classification(cpt, layer_table):
         results from the layer_table.
 
     """
-    if 'elevation_with_respect_to_NAP' in layer_table.columns:
-        layer_table = layer_table.drop('elevation_with_respect_to_NAP', axis=1)
+    if "elevation_with_respect_to_NAP" in layer_table.columns:
+        layer_table = layer_table.drop("elevation_with_respect_to_NAP", axis=1)
 
-    if 'depth_btm' in layer_table.columns:
-        fill_method = 'bfill'
-        col = 'depth_btm'
+    if "depth_btm" in layer_table.columns:
+        pass
+    elif (
+        "depth_top" in layer_table.columns
+        and "thickness" in layer_table.columns
+    ):
+        layer_table = layer_table.assign(
+            depth_btm=layer_table["depth_top"].values + layer_table["thickness"].values
+        )
     else:
-        fill_method = 'ffill'
-        col = 'depth_top'
+        raise ValueError(
+            "'depth_btm' or ['depth_top', 'thickness'] should be column names in layer table"
+        )
 
-    layer_table = layer_table.assign(depth=layer_table[col])
-    soil_properties = merge_df_on_float(cpt.df, layer_table,
-                                        on='depth', how='left')
+    layer_table = layer_table.assign(depth=layer_table["depth_btm"])
+    soil_properties = merge_df_on_float(cpt.df, layer_table, on="depth", how="left")
 
-    soil_properties = soil_properties.fillna(method=fill_method).dropna()
+    soil_properties = soil_properties.fillna(method="bfill").dropna()
     u2 = estimate_water_pressure(cpt, soil_properties)
 
-    soil_properties["grain_pressure"] = grain_pressure(soil_properties.depth.values,
-                                                       soil_properties.gamma_sat.values, soil_properties.gamma.values,
-                                                       u2)
+    soil_properties["grain_pressure"] = grain_pressure(
+        soil_properties.depth.values,
+        soil_properties.gamma_sat.values,
+        soil_properties.gamma.values,
+        u2,
+    )
     return soil_properties
 
 
