@@ -13,13 +13,11 @@ class PileGroupTest(TestCase):
 
     def setUp(self) -> None:
         self.cpts = []
+        self.layer_tables = []
         basedir = "data/cpt-grid/"
         for cpt_path in os.listdir(basedir):
             self.cpts.append(ParseGEF(basedir + cpt_path))
-        # wrong layer_table doesn't matter for testing group behaviour
-        self.layer_tables = [
-            pd.read_csv("../../../tests/files/test_layer_table1.csv") for _ in self.cpts
-        ]
+            self.layer_tables.append(pd.read_csv("data/layer_tables_grid/" + cpt_path.replace("gef", "csv")))
 
     def test_group_calculation(self):
         pg = PileGroup(
@@ -33,9 +31,12 @@ class PileGroupTest(TestCase):
                 "soil_load": 10
             },
         )
-        self.assertTrue(len(pg.run_pile_calculations(-12)) == len(self.cpts))
+        self.assertTrue(len(pg.run_pile_calculations(-20)) == len(self.cpts))
 
-    def test_(self):
+    def test_single_pile_group_iters(self):
+        """
+        Runs an iteration with n_groups == n_cpts
+        """
         pg = PileGroup(
             self.cpts,
             self.layer_tables,
@@ -47,5 +48,7 @@ class PileGroupTest(TestCase):
                 "soil_load": 10
             },
         )
-        pg.run_pile_calculations(-12)
-        pg.plot_overview()
+        pg.run_pile_calculations(-20)
+        rc_k, variation_coefficients, valid = pg.run_group_calculation()
+        self.assertTrue(variation_coefficients.sum() == 0)
+        self.assertTrue(valid)

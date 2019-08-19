@@ -4,6 +4,7 @@ from scipy import spatial
 import matplotlib.pyplot as plt
 from anapile.pressure.compose import PileCalculationSettlementDriven
 from anapile.plot import BasePlot
+from anapile.pressure.group.ec_params import xi_3, xi_4
 
 
 class PileGroupPlotter(BasePlot):
@@ -58,8 +59,8 @@ class PileGroupPlotter(BasePlot):
         ax[1].plot([0, len(self.rcal)], np.ones(2) * np.mean(self.rcal))
         ax[1].set_xticks(idx)
         ax[1].grid()
-        ax[1].set_ylabel('Rcal [kN]')
-        ax[1].set_xlabel('#')
+        ax[1].set_ylabel("Rcal [kN]")
+        ax[1].set_xlabel("#")
 
         for i, v in enumerate(self.mape):
             ax[1].text(idx[i], self.rcal[i], "{:0.2f}".format(v), rotation=45)
@@ -82,10 +83,15 @@ class PileGroup(PileGroupPlotter):
         self.pile_calculation_kwargs = pile_calculation_kwargs
         self.pile_calculation = pile_calculation
         self.vor = spatial.Voronoi(self.coordinates)
-        self.groups = np.arange(len(cpts))
+        # Start off with the worst setting. No groups.
+        n = len(cpts)
+        self.groups = np.arange(n)
+        # design value per cpt
+        self.rc_k = np.zeros(n)
+        self.variation_coefficients = np.zeros(n)
 
     def run_pile_calculations(self, pile_tip_level):
-        self.rcal = []
+        self.rcal = np.zeros_like(self.cpts)
         kwargs = self.pile_calculation_kwargs.copy()
         for i in range(len(self.cpts)):
             kwargs["cpt"] = self.cpts[i]
@@ -93,7 +99,41 @@ class PileGroup(PileGroupPlotter):
 
             pc = self.pile_calculation(**kwargs)
             pc.run_calculation(pile_tip_level)
-            self.rcal.append((pc.rb + pc.rs - pc.nk) * 1000)
+            self.rcal[i] = (pc.rb + pc.rs - pc.nk) * 1000
 
         self.mape = np.abs(self.rcal - np.mean(self.rcal)) / np.mean(self.rcal)
+
         return self.rcal
+
+    def run_group_calculation(self, groups=None):
+        """
+        Determine the design values of the piles, the variation coefficients,
+        and if this group configuration is allowed
+        (variation coefficients should be below 0.12)
+
+        Returns
+        -------
+        results: tuple[np.array, np.array, boolean]
+            (rc;k desing values, variation coefficients, allowed group)
+
+        """
+        if groups:
+            self.groups = groups
+
+        for g in np.unique(self.groups):
+            mask = self.groups == g
+
+            # no. of cpts in group
+            n = len(self.rcal[mask])
+            xi3 = xi_3[n]
+            xi4 = xi_4[n]
+
+            self.rc_k[mask] = min(
+                np.mean(self.rcal[mask]) / xi3, np.min(self.rcal[mask]) / xi4
+            )
+
+            self.variation_coefficients[mask] = stats.variation(self.rcal[mask])
+
+        return self.rc_k, self.variation_coefficients, np.all(self.variation_coefficients <= 0.12)
+
+
