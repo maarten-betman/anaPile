@@ -741,10 +741,8 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             negative_friction,
             positive_friction,
         )
-
         # Settlement at pile tip level
         pile_settlement_ptl = self.pile_settlement_ptl()
-
         grain_pressure = original_grain_pressure + positive_friction - negative_friction
         soil_settlement = self.soil_settlement(grain_pressure)
         total_settlement_pile = np.cumsum(elastic_elongation) + pile_settlement_ptl
@@ -765,7 +763,6 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         last_state = np.inf
 
         for i in range(10):
-            print(positive_friction_parent)
             soil_settlement, total_settlement_pile = self._single_iter(
                 positive_friction_parent,
                 negative_friction_parent,
@@ -779,6 +776,11 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
 
             signs = np.sign(total_settlement_pile - soil_settlement)
             idx = np.argwhere(np.diff(signs) > 0).flatten()
+
+            if len(idx) == 0:
+                raise ValueError("""Could not find a tipping point for negative/ positive friction. 
+                You probably wan't to change the args ['soil_load', 'pile_load'].""")
+
             if len(idx) > 0:
                 tipping_idx = idx[0]
             else:
