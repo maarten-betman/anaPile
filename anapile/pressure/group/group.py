@@ -22,7 +22,23 @@ class PileGroup(BasePlot):
         self.pile_calculation = pile_calculation
         self.vor = spatial.Voronoi(self.coordinates)
 
-    def show_group(self, show=True, voronoi=True, figsize=(6, 6)):
+    def plot_group(self, show=True, voronoi=True, figsize=(6, 6)):
+        """
+
+        Parameters
+        ----------
+        show : bool
+         Show the matplotlib plot.
+        voronoi : bool
+         Plot voronoi cells
+        figsize : tuple
+            Matplotlib figsize
+
+        Returns
+        -------
+        fig : matplotlib.pyplot.Figure
+
+        """
         self._create_fig(figsize)
 
         if voronoi:
@@ -35,4 +51,6 @@ class PileGroup(BasePlot):
             plt.text(p[0], p[1], '#%d' % i, ha='center')
 
         return self._finish_plot(show=show)
+
+
 

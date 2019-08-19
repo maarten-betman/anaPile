@@ -18,4 +18,4 @@ class PileGroupTest(TestCase):
 
     def test_(self):
         pg = PileGroup(self.cpts, self.layer_tables)
-        pg.show_group()
+        pg.plot_group()
