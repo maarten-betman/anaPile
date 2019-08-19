@@ -208,28 +208,27 @@ class TestSettlementCalculation(TestCase):
         )
 
 
-class TestGef1(TestCase):
+class TestGef2(TestCase):
     pile_width = 0.25
     circum = pile_width * 4
     area = pile_width ** 2
     d_eq = 1.13 * pile_width
 
     def setUp(self) -> None:
-        self.gef = ParseGEF("files/test_gef1.gef")
-        self.layer_table = pd.read_csv("files/test_layer_table1.csv")
+        self.gef = ParseGEF("files/test_gef2.gef")
+        self.layer_table = pd.read_csv("files/test_layer_table2.csv")
         self.calc = PileCalculationSettlementDriven(
             self.gef,
             self.d_eq,
             self.circum,
             self.area,
             self.layer_table,
-            pile_load=1500,
-            soil_load=0,
+            pile_load=1000,
+            soil_load=1
         )
 
     def test_raise_when_no_tipping_point_found(self):
-        with self.assertRaises(ValueError):
-            self.calc.run_calculation(-25)
+        self.calc.run_calculation(-25)
 
 
 if __name__ == "__main__":

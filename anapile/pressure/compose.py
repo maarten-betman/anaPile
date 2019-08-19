@@ -777,14 +777,11 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             signs = np.sign(total_settlement_pile - soil_settlement)
             idx = np.argwhere(np.diff(signs) > 0).flatten()
 
-            if len(idx) == 0:
-                raise ValueError("""Could not find a tipping point for negative/ positive friction. 
-                You probably wan't to change the args ['soil_load', 'pile_load'].""")
+            if len(idx) == 0:  # one has more settlement over the whole range
+                idx = np.zeros(1, dtype=int)
 
-            if len(idx) > 0:
-                tipping_idx = idx[0]
-            else:
-                tipping_idx = len(depth)
+            tipping_idx = idx[0]
+
             self.positive_friction_slice = slice(tipping_idx, len(depth))
             self.negative_friction_slice = slice(0, tipping_idx)
 
