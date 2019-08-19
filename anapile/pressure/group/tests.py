@@ -35,3 +35,17 @@ class PileGroupTest(TestCase):
         )
         self.assertTrue(len(pg.run_calculation(-12)) == len(self.cpts))
 
+    def test_(self):
+        pg = PileGroup(
+            self.cpts,
+            self.layer_tables,
+            pile_calculation_kwargs={
+                "d_eq": self.d_eq,
+                "circum": self.circum,
+                "area": self.area,
+                "pile_load": 1000,
+                "soil_load": 10
+            },
+        )
+        pg.run_calculation(-12)
+        pg.plot_overview()
