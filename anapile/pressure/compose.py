@@ -390,6 +390,19 @@ class PileCalculation:
         return fig
 
     def calculation_result_table(self, pile_tip_level):
+        """
+        Run a calculation and get results table.
+
+        Parameters
+        ----------
+        pile_tip_level : Union[np.array[float], float]
+            Pile tip level in [m NAP]
+
+        Returns
+        -------
+        table : pd.DataFrame
+
+        """
         self.run_calculation(pile_tip_level)
         return pd.DataFrame(
             {
