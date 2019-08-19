@@ -4,4 +4,4 @@ anapile.egg-info/
 anapile/pressure/scratch.py
 build/
 dist/
-
+ignore/
