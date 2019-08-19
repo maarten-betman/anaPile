@@ -7,10 +7,13 @@ from anapile.plot import BasePlot
 
 
 class PileGroupPlotter(BasePlot):
-    coordinates = None
-    vor = None
-    rcal = None
-    variation_coefficient = None
+    def __init__(self):
+        super().__init__()
+        self.coordinates = None
+        self.vor = None
+        self.rcal = None
+        self.variation_coefficient = None
+        self.mape = None
 
     def plot_group(self, show=True, voronoi=True, figsize=(6, 6), ax=None):
         """
@@ -82,9 +85,6 @@ class PileGroup(PileGroupPlotter):
         self.pile_calculation_kwargs = pile_calculation_kwargs
         self.pile_calculation = pile_calculation
         self.vor = spatial.Voronoi(self.coordinates)
-        self.rcal = None
-        self.variation_coefficient = None
-        self.mape = None
 
     def run_calculation(self, pile_tip_level):
         self.rcal = []
