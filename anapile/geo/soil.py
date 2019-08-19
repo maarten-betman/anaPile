@@ -3,6 +3,7 @@ from pygef import nap_to_depth
 import re
 import pandas as pd
 from anapile.utils import merge_df_on_float
+import warnings
 
 WATER_PRESSURE = 0.00981
 
@@ -69,6 +70,7 @@ def estimate_water_pressure(cpt, soil_properties=None):
         u[u < 0] = 0
     else:
         u = soil_properties.depth * WATER_PRESSURE
+        warnings.warn("Water level not available in CPT. anaPile set the water level implicitly")
     return u
 
 
