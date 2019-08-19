@@ -131,14 +131,14 @@ class PileCalculation:
     def negative_friction_tipping_point_nap(self):
         """Tipping point for negative friction wrt. NAP"""
         if self.negative_friction_slice:
-            return self.merged_soil_properties.elevation_with_respect_to_NAP[
+            return self.merged_soil_properties.elevation_with_respect_to_NAP.values[
                 self.negative_friction_slice.stop
             ]
 
     @property
     def positive_friction_tipping_point_nap(self):
         if self.positive_friction_slice:
-            return self.merged_soil_properties.elevation_with_respect_to_NAP[
+            return self.merged_soil_properties.elevation_with_respect_to_NAP.values[
                 self.positive_friction_slice.start
             ]
 
