@@ -33,7 +33,7 @@ class PileGroupTest(TestCase):
                 "soil_load": 10
             },
         )
-        self.assertTrue(len(pg.run_calculation(-12)) == len(self.cpts))
+        self.assertTrue(len(pg.run_pile_calculations(-12)) == len(self.cpts))
 
     def test_(self):
         pg = PileGroup(
@@ -47,5 +47,5 @@ class PileGroupTest(TestCase):
                 "soil_load": 10
             },
         )
-        pg.run_calculation(-12)
+        pg.run_pile_calculations(-12)
         pg.plot_overview()

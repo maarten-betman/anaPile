@@ -12,8 +12,8 @@ class PileGroupPlotter(BasePlot):
         self.coordinates = None
         self.vor = None
         self.rcal = None
-        self.variation_coefficient = None
         self.mape = None
+        self.groups = None
 
     def plot_group(self, show=True, voronoi=True, figsize=(6, 6), ax=None):
         """
@@ -64,9 +64,6 @@ class PileGroupPlotter(BasePlot):
         for i, v in enumerate(self.mape):
             ax[1].text(idx[i], self.rcal[i], "{:0.2f}".format(v), rotation=45)
 
-        ax[1].set_title(
-            "Variation coefficient: {:.0f}%".format(self.variation_coefficient * 100)
-        )
         self._finish_plot(show=show)
 
 
@@ -85,8 +82,9 @@ class PileGroup(PileGroupPlotter):
         self.pile_calculation_kwargs = pile_calculation_kwargs
         self.pile_calculation = pile_calculation
         self.vor = spatial.Voronoi(self.coordinates)
+        self.groups = np.arange(len(cpts))
 
-    def run_calculation(self, pile_tip_level):
+    def run_pile_calculations(self, pile_tip_level):
         self.rcal = []
         kwargs = self.pile_calculation_kwargs.copy()
         for i in range(len(self.cpts)):
@@ -97,6 +95,5 @@ class PileGroup(PileGroupPlotter):
             pc.run_calculation(pile_tip_level)
             self.rcal.append((pc.rb + pc.rs - pc.nk) * 1000)
 
-        self.variation_coefficient = stats.variation(self.rcal)
         self.mape = np.abs(self.rcal - np.mean(self.rcal)) / np.mean(self.rcal)
         return self.rcal
