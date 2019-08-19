@@ -373,7 +373,6 @@ class PileCalculation:
         -------
 
         """
-        self.run_calculation(pile_tip_level)
         single_level = isinstance(pile_tip_level, (int, float))
 
         n_subplots = 2 + n_subplots if single_level else 3 + n_subplots
@@ -766,6 +765,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         last_state = np.inf
 
         for i in range(10):
+            print(positive_friction_parent)
             soil_settlement, total_settlement_pile = self._single_iter(
                 positive_friction_parent,
                 negative_friction_parent,
