@@ -7,7 +7,7 @@ from anapile.utils import merge_df_on_float
 WATER_PRESSURE = 0.00981
 
 
-def grain_pressure(depth, gamma_sat, gamma, u2=None):
+def grain_pressure(depth, gamma_sat, gamma, u=None):
     """
     Determine the grain pressure over the depth.
 
@@ -19,7 +19,7 @@ def grain_pressure(depth, gamma_sat, gamma, u2=None):
         Saturated gamma values in [MPa]. Determined by classification.
     gamma : array
         Gamma values in [MPa]. Determined by classification.
-    u2 : array
+    u : array
         Water pressure in [MPa]
     Returns
     -------
@@ -28,22 +28,22 @@ def grain_pressure(depth, gamma_sat, gamma, u2=None):
     """
     h = np.diff(depth)
     h = np.r_[depth[0], h]
-    if u2 is None:
-        u2 = depth * WATER_PRESSURE
-        u2[u2 < 0] = 0
+    if u is None:
+        u = depth * WATER_PRESSURE
+        u[u < 0] = 0
 
     weights = h * gamma_sat
 
     # correct for soil above water level
-    mask = u2 == 0
+    mask = u == 0
     weights[mask] = h[mask] * gamma[mask]
 
-    return np.cumsum(weights) - u2
+    return np.cumsum(weights) - u
 
 
 def estimate_water_pressure(cpt, soil_properties=None):
     """
-    Estimate water pressure. If u2 is in CPT measurements, it is returned.
+    Estimate water pressure. If u is in CPT measurements, it is returned.
     Otherwise it computes a water pressure by assuming a rising pressure over depth.
 
     Parameters
@@ -54,22 +54,22 @@ def estimate_water_pressure(cpt, soil_properties=None):
 
     Returns
     -------
-    u2 : np.array[float]
+    u : np.array[float]
         Water pressure over depth.
 
     """
     if soil_properties is None:
         soil_properties = cpt.df
 
-    if "u2" in cpt.df.columns:
-        u2 = soil_properties.u2.values
+    if "u" in cpt.df.columns:
+        u = soil_properties.u.values
     elif cpt.groundwater_level is not None:
         water_depth = nap_to_depth(cpt.zid, cpt.groundwater_level)
-        u2 = (soil_properties.depth - water_depth) * WATER_PRESSURE
-        u2[u2 < 0] = 0
+        u = (soil_properties.depth - water_depth) * WATER_PRESSURE
+        u[u < 0] = 0
     else:
-        u2 = soil_properties.depth * WATER_PRESSURE
-    return u2
+        u = soil_properties.depth * WATER_PRESSURE
+    return u
 
 
 def join_cpt_with_classification(cpt, layer_table):
@@ -109,13 +109,13 @@ def join_cpt_with_classification(cpt, layer_table):
     soil_properties = merge_df_on_float(cpt.df, layer_table, on="depth", how="left")
 
     soil_properties = soil_properties.fillna(method="bfill").dropna()
-    u2 = estimate_water_pressure(cpt, soil_properties)
+    u = estimate_water_pressure(cpt, soil_properties)
 
     soil_properties["grain_pressure"] = grain_pressure(
         soil_properties.depth.values,
         soil_properties.gamma_sat.values,
         soil_properties.gamma.values,
-        u2,
+        u,
     )
     return soil_properties
 
