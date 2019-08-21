@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 from anapile import settlement
 from anapile import geo
+import logging
 
 
 class PileCalculation:
@@ -121,6 +122,17 @@ class PileCalculation:
         self.rb_ = []
         self.nk_ = []
         self.pile_tip_level_ = np.array(pile_tip_level)
+        start_depth = self.d_eq * 8
+        end_depth = self.cpt.df.depth.max() - self.d_eq * 4
+
+        mask = ~(
+            (self.pile_tip_level_ < start_depth) | (self.pile_tip_level_ > end_depth)
+        )
+        if mask.sum() < len(self.pile_tip_level_):
+            logging.warning(
+                "Pile tip level input was masked as it is not between (surface_level - 8D) and (cpt_depth - 4D)"
+            )
+            self.pile_tip_level_ = self.pile_tip_level_[mask]
 
     @property
     def pile_tip_level_nap(self):

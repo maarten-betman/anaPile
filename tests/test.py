@@ -153,6 +153,25 @@ class Pressure(TestCase):
 
         self.assertAlmostEqual(thickness[0], 14.354)
 
+    def test_pile_tip_masking(self):
+        """
+        pile tip level should be between surface_level - 8D and cpt_depth - 4D
+        """
+        pile_width = 0.25
+        circum = pile_width * 4
+        area = pile_width ** 2
+        d_eq = 1.13 * pile_width
+        calc = PileCalculationSettlementDriven(
+            self.gef,
+            d_eq,
+            circum,
+            area,
+            self.layer_table,
+            pile_load=1500,
+            soil_load=10,
+        )
+        calc._init_calculation(np.linspace(self.gef.zid, self.gef.df.depth.max()))
+
 
 class TestSettlementCalculation(TestCase):
     pile_width = 0.25
