@@ -5,6 +5,10 @@ import matplotlib.pyplot as plt
 from anapile.pressure.compose import PileCalculationSettlementDriven
 from anapile.plot import BasePlot
 from anapile.pressure.group.ec_params import xi_3, xi_4
+from collections import defaultdict
+import itertools
+import random
+import copy
 
 
 class PileGroupPlotter(BasePlot):
@@ -82,13 +86,48 @@ class PileGroup(PileGroupPlotter):
         self.layer_tables = layer_tables
         self.pile_calculation_kwargs = pile_calculation_kwargs
         self.pile_calculation = pile_calculation
+
         self.vor = spatial.Voronoi(self.coordinates)
+
+        # Create a bounding box, containing 4 points around the grid
+        # This will make sure that with the Delaunay triangulation,
+        # corner A of the real coordinates will not be neighbouring
+        # corner B.
+        # TODO: show in notebook what is the case.
+        d = self.vor.max_bound - self.vor.min_bound
+        left_btm = self.vor.min_bound
+        left_top = left_btm + np.array([0, d[1]])
+        right_top = self.vor.max_bound
+        right_btm = right_top - np.array([0, d[1]])
+        self.coordinates_boxed = np.concatenate(
+            (
+                self.coordinates,
+                left_btm[None, :],
+                left_top[None, :],
+                right_btm[None, :],
+                right_top[None, :],
+            )
+        )
+
         # Start off with the worst setting. No groups.
         n = len(cpts)
         self.groups = np.arange(n)
         # design value per cpt
         self.rc_k = np.zeros(n)
         self.variation_coefficients = np.zeros(n)
+
+        self.neighbors = defaultdict(set)
+        tri = spatial.Delaunay(self.coordinates_boxed)
+
+        # idx are the indexes of the neighbouring cpts
+        for idx in tri.simplices:
+            # find the possible combinations of pairs.
+            for i, j in itertools.combinations(idx, 2):
+                # ignore the bounding boxing points
+                # concatenated in self.coordinates_boxed
+                if i < n and j < n:
+                    self.neighbors[i].add(j)
+                    self.neighbors[j].add(i)
 
     def run_pile_calculations(self, pile_tip_level):
         self.rcal = np.zeros_like(self.cpts)
@@ -117,7 +156,7 @@ class PileGroup(PileGroupPlotter):
             (rc;k desing values, variation coefficients, allowed group)
 
         """
-        if groups:
+        if groups is not None:
             self.groups = groups
 
         for g in np.unique(self.groups):
@@ -134,6 +173,10 @@ class PileGroup(PileGroupPlotter):
 
             self.variation_coefficients[mask] = stats.variation(self.rcal[mask])
 
-        return self.rc_k, self.variation_coefficients, np.all(self.variation_coefficients <= 0.12)
+        return (
+            self.rc_k,
+            self.variation_coefficients,
+            np.all(self.variation_coefficients <= 0.12),
+        )
 
 
