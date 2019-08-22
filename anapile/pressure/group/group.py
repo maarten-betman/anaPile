@@ -51,19 +51,15 @@ class PileGroupPlotter(BasePlot):
 
         if voronoi:
             spatial.voronoi_plot_2d(self.vor, ax)
-            for i in range(len(self.vor.point_region)):
-                region = self.vor.regions[self.vor.point_region[i]]
-                # can only plot the closing voronoi cells.
-                if -1 not in region:
-                    polygon = [self.vor.vertices[i] for i in region]
-                    plt.fill(*zip(*polygon), alpha=0.3, color=colors[self.groups[i]])
-
         else:
             ax.plot(self.coordinates[:, 0], self.coordinates[:, 1], "o")
         ax.set_xlabel("x-coordinates")
         ax.set_ylabel("y-coordinates")
         for i, p in enumerate(self.coordinates):
-            ax.text(p[0], p[1], f"#{i};G{self.groups[i]}", ha="center", fontsize=10)
+            ax.text(p[0], p[1], f"#{i};G{self.groups[i]}",
+                    fontsize=10,
+                    ha="center",
+                    backgroundcolor=colors[self.groups[i]])
 
         return self._finish_plot(show=show)
 
@@ -122,9 +118,9 @@ class PileGroup(PileGroupPlotter):
             )
         )
 
-        # Start off with the worst setting. No groups.
+        # Start off with one group
         n = len(cpts)
-        self.groups = np.arange(n)
+        self.groups = np.zeros(n, dtype=int)
         # design value per cpt
         self.rc_k = np.zeros(n)
         self.variation_coefficients = np.zeros(n)
@@ -192,33 +188,4 @@ class PileGroup(PileGroupPlotter):
             np.all(self.variation_coefficients <= 0.12),
         )
 
-    def optimize(self):
 
-        groups = copy.copy(self.groups)
-        all_idx = np.arange(len(self.cpts))
-
-        for _ in range(200):
-            rc_k, variation_coefficients, valid = self.run_group_calculation(groups)
-            if valid:
-                self.groups = copy.copy(groups)
-            else:
-                groups = copy.copy(self.groups)
-
-            # find the weakest pile and add a neighbor to it's group
-            idx = random.choice(
-                [rc_k.argmin(), np.random.choice(all_idx), rc_k.argmax()]
-            )
-            # idx = np.random.choice(all_idx)
-
-            # add the first neighbor belonging to another group
-            container = list(self.neighbors[idx])
-            random.shuffle(container)
-            for neighbor in container:
-                if groups[neighbor] != groups[idx]:
-                    groups[neighbor] = groups[idx]
-                    break
-
-            print(valid, idx, self.neighbors[idx])
-            # print(idx, self.neighbors[idx])
-            # print(rc_k.sum(), rc_k)
-            # print(groups)
