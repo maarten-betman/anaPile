@@ -70,5 +70,11 @@ class PileGroupTest(TestCase):
             },
         )
         pg.run_pile_calculations(-20)
-        pg.optimize()
+        rc_k, variation_coefficients, valid = pg.optimize()
         pg.plot_overview()
+        self.assertTrue(valid, pg._valid_group_configuration())
+        self.assertAlmostEqual(19598.4095, rc_k.sum(), places=3)
+        self.assertAlmostEqual(0.7093, variation_coefficients.sum(), places=3)
+
+
+
