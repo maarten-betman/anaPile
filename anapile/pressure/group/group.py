@@ -72,7 +72,7 @@ class PileGroupPlotter(BasePlot):
 
     def plot_overview(self, show=True, figsize=(16, 8)):
         fig, ax = plt.subplots(1, 2, figsize=figsize)
-        plt.suptitle('N groups: {}'.format(np.unique(self.groups).shape[0]))
+        plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
         self.plot_group(show=False, voronoi=True, ax=ax[0])
 
         idx = np.arange(len(self.rcal))
@@ -98,7 +98,7 @@ class PileGroupPlotter(BasePlot):
         self._finish_plot(show=show)
 
 
-class PileGroup(PileGroupPlotter):
+class PileGroupInPlane(PileGroupPlotter):
     def __init__(
         self,
         cpts,
@@ -209,11 +209,22 @@ class PileGroup(PileGroupPlotter):
         return True
 
     def optimize(self, seed=1):
+        """
+        Optimized
+        Parameters
+        ----------
+        seed : int
+            Fix random seed.
+
+        Returns
+        -------
+        rc_k, variation_coefficients, valid : tuple[np.array, np.array, bool]
+        """
         np.random.seed(seed)
         rc_k, variation_coefficients, valid = self.run_group_calculation()
-        x = scale(np.hstack([self.coordinates,
-                             self.rcal[:, None],
-                             self.rcal[:, None]]))
+        # add rcal twice so that extra weight, will be on those columns
+        # and iterate over multiple strides of this x matrix
+        x = scale(np.hstack([self.coordinates, self.rcal[:, None], self.rcal[:, None]]))
         n = 1
         while not valid:
             n += 1
@@ -221,7 +232,7 @@ class PileGroup(PileGroupPlotter):
                 cluster.KMeans(n),
                 cluster.AgglomerativeClustering(n, linkage="ward"),
                 cluster.AgglomerativeClustering(n, linkage="average"),
-                cluster.AgglomerativeClustering(n, linkage="single")
+                cluster.AgglomerativeClustering(n, linkage="single"),
             ]:
                 for x_ in (x[:, :-2], x[:, :-1], x):
                     m.fit(x_)
@@ -230,3 +241,32 @@ class PileGroup(PileGroupPlotter):
                     if valid:
                         return rc_k, variation_coefficients, valid
         return rc_k, variation_coefficients, valid
+
+
+class PileGroup(PileGroupInPlane):
+    def __init__(
+        self,
+        cpts,
+        layer_tables,
+        pile_calculation_kwargs=dict(soil_load=1, pile_load=750),
+        pile_calculation=PileCalculationSettlementDriven,
+    ):
+        super().__init__(cpts, layer_tables, pile_calculation_kwargs, pile_calculation)
+        self.pile_tip_level = None
+
+    def run_pile_calculations(self, pile_tip_level):
+        self.rcal = np.zeros((len(self.cpts), len(pile_tip_level)))
+        kwargs = self.pile_calculation_kwargs.copy()
+        for i in range(len(self.cpts)):
+            kwargs["cpt"] = self.cpts[i]
+            kwargs["layer_table"] = self.layer_tables[i]
+
+            pc = self.pile_calculation(**kwargs)
+            pc.run_calculation(pile_tip_level)
+            self.rcal[i] = (pc.rb_ + pc.rs_ - pc.nk_) * 1000
+
+        mean_over_cpt = np.mean(self.rcal, axis=0)
+        self.mape = np.abs(self.rcal - mean_over_cpt) / mean_over_cpt
+        self.pile_tip_level = pc.pile_tip_level_
+
+        return self.rcal
