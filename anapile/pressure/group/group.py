@@ -130,9 +130,12 @@ class PileGroup(PileGroupPlotter):
         for idx in tri.simplices:
             # find the possible combinations of pairs.
             for i, j in itertools.combinations(idx, 2):
-                # ignore the bounding boxing points
-                # concatenated in coordinates_boxed
-                if i < n and j < n:
+                region_i = set(self.vor.regions[self.vor.point_region[i]]) - {-1}
+                region_j = set(self.vor.regions[self.vor.point_region[j]]) - {-1}
+
+                # should at least share 2 points
+                # then the edge is shared
+                if len(region_i.intersection(region_j)) >= 2:
                     self.neighbors[i].add(j)
                     self.neighbors[j].add(i)
 
@@ -201,7 +204,7 @@ class PileGroup(PileGroupPlotter):
             # Being the only one in a group is allowed.
             if len(group_members) == 0:
                 continue
-            # Do I have at least one neighbor as group member
+            # Do I have at least on neighbor as group member
             if len(self.neighbors[i].intersection(group_members)) < 1:
                 return False
         return True
@@ -217,14 +220,13 @@ class PileGroup(PileGroupPlotter):
             n += 1
             for m in [
                 cluster.KMeans(n),
-                cluster.AgglomerativeClustering(n),
+                cluster.AgglomerativeClustering(n, linkage="ward"),
                 cluster.AgglomerativeClustering(n, linkage="average"),
+                cluster.AgglomerativeClustering(n, linkage="single")
             ]:
                 for x_ in (x[:, :-2], x[:, :-1], x):
                     m.fit(x_)
                     self.groups = m.labels_
                     rc_k, variation_coefficients, valid = self.run_group_calculation()
                     if valid:
-                        break
-
-        return rc_k, variation_coefficients
+                        return rc_k, variation_coefficients
