@@ -2,6 +2,7 @@ from unittest import TestCase
 import os
 from anapile.pressure.group import PileGroup
 from pygef import ParseGEF
+import numpy as np
 import pandas as pd
 
 
@@ -49,6 +50,24 @@ class PileGroupTest(TestCase):
             },
         )
         pg.run_pile_calculations(-20)
+        pg.groups = np.arange(len(self.cpts))
         rc_k, variation_coefficients, valid = pg.run_group_calculation()
         self.assertTrue(variation_coefficients.sum() == 0)
         self.assertTrue(valid)
+        pg.plot_overview()
+        pg.plot_group()
+
+    def test_optimization(self):
+        pg = PileGroup(
+            self.cpts,
+            self.layer_tables,
+            pile_calculation_kwargs={
+                "d_eq": self.d_eq,
+                "circum": self.circum,
+                "area": self.area,
+                "pile_load": 1000,
+                "soil_load": 10
+            },
+        )
+        pg.run_pile_calculations(-20)
+        pg.optimize()

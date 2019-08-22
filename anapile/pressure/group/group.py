@@ -7,9 +7,10 @@ from anapile.plot import BasePlot
 from anapile.pressure.group.ec_params import xi_3, xi_4
 from collections import defaultdict
 import itertools
-import copy
 import matplotlib.colors as mcolors
 import random
+from sklearn import cluster
+from sklearn.preprocessing import scale
 
 
 class PileGroupPlotter(BasePlot):
@@ -185,7 +186,37 @@ class PileGroup(PileGroupPlotter):
         return (
             self.rc_k,
             self.variation_coefficients,
-            np.all(self.variation_coefficients <= 0.12),
+            np.all(self.variation_coefficients <= 0.12) and self._valid_group_configuration(),
         )
 
+    def _valid_group_configuration(self):
+
+        # Groups should have at least one neighbor from the same group,
+        # unless it is the single member of the group
+        for i in range(len(self.cpts)):
+            # to which group do I belong?
+            my_group = self.groups[i]
+
+            # who are my group members?
+            group_members = set(np.argwhere(self.groups == my_group).flatten()) - {i}
+
+            # Being the only one in a group is allowed.
+            if len(group_members) == 0:
+                continue
+            # Do I have at least on neighbor as group member
+            if len(self.neighbors[i].intersection(group_members)) < 1:
+                return False
+        return True
+
+    def optimize(self):
+        rc_k, variation_coefficients, valid = self.run_group_calculation()
+        x = scale(np.hstack([self.coordinates, self.rcal[:, None]]))
+        n = 1
+        while not valid:
+            n += 1
+            m = cluster.hierarchical.AgglomerativeClustering(n)
+            m.fit(x)
+            self.groups = m.labels_
+            rc_k, variation_coefficients, valid = self.run_group_calculation()
+        return rc_k, variation_coefficients
 
