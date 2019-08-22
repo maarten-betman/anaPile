@@ -14,6 +14,11 @@ from sklearn.preprocessing import scale
 
 
 class PileGroupPlotter(BasePlot):
+    # don't wan't succeeding colors to look too much alike
+    colors = list(mcolors.XKCD_COLORS.values())
+    random.seed(1)
+    random.shuffle(colors)
+
     def __init__(self):
         super().__init__()
         self.coordinates = None
@@ -35,6 +40,8 @@ class PileGroupPlotter(BasePlot):
             Matplotlib figsize
         ax : matplotlib.axes
             If given plots will be made on this axis.
+        colors : list[str]
+            hex color values, used for group plotting.
 
         Returns
         -------
@@ -45,11 +52,6 @@ class PileGroupPlotter(BasePlot):
             self._create_fig(figsize)
             ax = plt.gca()
 
-        # don't wan't succeeding colors to look too much alike
-        colors = list(mcolors.XKCD_COLORS.values())
-        random.seed(1)
-        random.shuffle(colors)
-
         if voronoi:
             spatial.voronoi_plot_2d(self.vor, ax)
         else:
@@ -57,10 +59,14 @@ class PileGroupPlotter(BasePlot):
         ax.set_xlabel("x-coordinates")
         ax.set_ylabel("y-coordinates")
         for i, p in enumerate(self.coordinates):
-            ax.text(p[0], p[1], f"#{i};G{self.groups[i]}",
-                    fontsize=10,
-                    ha="center",
-                    backgroundcolor=colors[self.groups[i]])
+            ax.text(
+                p[0],
+                p[1],
+                f"#{i};G{self.groups[i]}",
+                fontsize=10,
+                ha="center",
+                backgroundcolor=self.colors[self.groups[i]],
+            )
 
         return self._finish_plot(show=show)
 
@@ -70,15 +76,23 @@ class PileGroupPlotter(BasePlot):
 
         idx = np.arange(len(self.rcal))
         ax[1].scatter(idx, self.rcal)
-        ax[1].plot([0, len(self.rcal)], np.ones(2) * np.mean(self.rcal))
+        ax[1].plot(
+            [0, len(self.rcal)], np.ones(2) * np.mean(self.rcal), label="Mean $R_{cal}$"
+        )
         ax[1].set_xticks(idx)
         ax[1].grid()
         ax[1].set_ylabel("Rcal [kN]")
         ax[1].set_xlabel("#")
 
         for i, v in enumerate(self.mape):
-            ax[1].text(idx[i], self.rcal[i], "{:0.2f}".format(v), rotation=45)
-
+            ax[1].text(
+                idx[i],
+                self.rcal[i],
+                "{:0.2f}".format(v),
+                backgroundcolor=self.colors[self.groups[i]],
+                rotation=45,
+            )
+        plt.legend()
         self._finish_plot(show=show)
 
 
@@ -186,7 +200,8 @@ class PileGroup(PileGroupPlotter):
         return (
             self.rc_k,
             self.variation_coefficients,
-            np.all(self.variation_coefficients <= 0.12) and self._valid_group_configuration(),
+            np.all(self.variation_coefficients <= 0.12)
+            and self._valid_group_configuration(),
         )
 
     def _valid_group_configuration(self):
@@ -219,4 +234,3 @@ class PileGroup(PileGroupPlotter):
             self.groups = m.labels_
             rc_k, variation_coefficients, valid = self.run_group_calculation()
         return rc_k, variation_coefficients
-

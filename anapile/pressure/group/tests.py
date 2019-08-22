@@ -71,3 +71,4 @@ class PileGroupTest(TestCase):
         )
         pg.run_pile_calculations(-20)
         pg.optimize()
+        pg.plot_overview()
