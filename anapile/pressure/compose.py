@@ -287,7 +287,7 @@ class PileCalculation:
 
         fig = plt.figure(figsize=figsize, **kwargs)
         fig.add_subplot(1, n_subplots, 1)
-        plt.ylabel("Depth [m]")
+        plt.ylabel("Depth [m NAP]")
         plt.xlabel("qc [MPa]")
         plt.plot(
             self.cpt.df.qc.values, self.cpt.df.elevation_with_respect_to_NAP.values
