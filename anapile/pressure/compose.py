@@ -122,15 +122,25 @@ class PileCalculation:
         self.rb_ = []
         self.nk_ = []
         self.pile_tip_level_ = np.array(pile_tip_level)
-        start_depth = self.d_eq * 8
-        end_depth = self.cpt.df.depth.max() - self.d_eq * 4
 
-        mask = ~(
+        start_depth = depth_to_nap(self.d_eq * 8, self.cpt.zid)
+        end_depth = depth_to_nap(self.cpt.df.depth.max() - self.d_eq * 4, self.cpt.zid)
+
+        # masking logic with NAP is inverse to logic with depth
+        mask = (
             (self.pile_tip_level_ < start_depth) | (self.pile_tip_level_ > end_depth)
         )
         if mask.sum() < len(self.pile_tip_level_):
             logging.warning(
-                "Pile tip level input was masked as it is not between (surface_level - 8D) and (cpt_depth - 4D)"
+                """"Pile tip level input was masked as it is not between (surface_level - 8D) and (cpt_depth - 4D)
+                pile_tip_level_ before: {}
+                pile_tip_level_ masked: {}
+                Allowed range: [{:0.2f}, {:0.2f}]""".format(
+                    self.pile_tip_level_,
+                    self.pile_tip_level_[mask],
+                    start_depth,
+                    end_depth,
+                )
             )
             self.pile_tip_level_ = self.pile_tip_level_[mask]
 
@@ -815,6 +825,7 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         pile_tip_level : Union[np.array[float], float]
             Pile tip level in [m NAP]
         """
+
         self._init_calculation(pile_tip_level)
         for ptl in self.pile_tip_level_:
             self._set_ptl(ptl)
