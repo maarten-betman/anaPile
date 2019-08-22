@@ -229,3 +229,4 @@ class PileGroup(PileGroupPlotter):
                     rc_k, variation_coefficients, valid = self.run_group_calculation()
                     if valid:
                         return rc_k, variation_coefficients
+        return rc_k, variation_coefficients
