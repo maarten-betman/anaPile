@@ -124,7 +124,6 @@ class PileGroup(PileGroupPlotter):
 
         self.neighbors = defaultdict(set)
         tri = spatial.Delaunay(self.coordinates)
-        spatial.delaunay_plot_2d(tri)
 
         # idx are the indexes of the neighbouring cpts
         for idx in tri.simplices:
