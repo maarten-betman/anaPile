@@ -72,6 +72,7 @@ class PileGroupPlotter(BasePlot):
 
     def plot_overview(self, show=True, figsize=(16, 8)):
         fig, ax = plt.subplots(1, 2, figsize=figsize)
+        plt.suptitle('N groups: {}'.format(np.unique(self.groups).shape[0]))
         self.plot_group(show=False, voronoi=True, ax=ax[0])
 
         idx = np.arange(len(self.rcal))
@@ -93,6 +94,7 @@ class PileGroupPlotter(BasePlot):
                 rotation=45,
             )
         plt.legend()
+        plt.tight_layout(pad=1.5)
         self._finish_plot(show=show)
 
 
@@ -113,26 +115,6 @@ class PileGroup(PileGroupPlotter):
 
         self.vor = spatial.Voronoi(self.coordinates)
 
-        # Create a bounding box, containing 4 points around the grid
-        # This will make sure that with the Delaunay triangulation,
-        # corner A of the real coordinates will not be neighbouring
-        # corner B.
-        # TODO: show in notebook what is the case.
-        d = self.vor.max_bound - self.vor.min_bound
-        left_btm = self.vor.min_bound
-        left_top = left_btm + np.array([0, d[1]])
-        right_top = self.vor.max_bound
-        right_btm = right_top - np.array([0, d[1]])
-        self.coordinates_boxed = np.concatenate(
-            (
-                self.coordinates,
-                left_btm[None, :],
-                left_top[None, :],
-                right_btm[None, :],
-                right_top[None, :],
-            )
-        )
-
         # Start off with one group
         n = len(cpts)
         self.groups = np.zeros(n, dtype=int)
@@ -141,14 +123,15 @@ class PileGroup(PileGroupPlotter):
         self.variation_coefficients = np.zeros(n)
 
         self.neighbors = defaultdict(set)
-        tri = spatial.Delaunay(self.coordinates_boxed)
+        tri = spatial.Delaunay(self.coordinates)
+        spatial.delaunay_plot_2d(tri)
 
         # idx are the indexes of the neighbouring cpts
         for idx in tri.simplices:
             # find the possible combinations of pairs.
             for i, j in itertools.combinations(idx, 2):
                 # ignore the bounding boxing points
-                # concatenated in self.coordinates_boxed
+                # concatenated in coordinates_boxed
                 if i < n and j < n:
                     self.neighbors[i].add(j)
                     self.neighbors[j].add(i)
@@ -218,19 +201,30 @@ class PileGroup(PileGroupPlotter):
             # Being the only one in a group is allowed.
             if len(group_members) == 0:
                 continue
-            # Do I have at least on neighbor as group member
+            # Do I have at least one neighbor as group member
             if len(self.neighbors[i].intersection(group_members)) < 1:
                 return False
         return True
 
-    def optimize(self):
+    def optimize(self, seed=1):
+        np.random.seed(seed)
         rc_k, variation_coefficients, valid = self.run_group_calculation()
-        x = scale(np.hstack([self.coordinates, self.rcal[:, None]]))
+        x = scale(np.hstack([self.coordinates,
+                             self.rcal[:, None],
+                             self.rcal[:, None]]))
         n = 1
         while not valid:
             n += 1
-            m = cluster.hierarchical.AgglomerativeClustering(n)
-            m.fit(x)
-            self.groups = m.labels_
-            rc_k, variation_coefficients, valid = self.run_group_calculation()
+            for m in [
+                cluster.KMeans(n),
+                cluster.AgglomerativeClustering(n),
+                cluster.AgglomerativeClustering(n, linkage="average"),
+            ]:
+                for x_ in (x[:, :-2], x[:, :-1], x):
+                    m.fit(x_)
+                    self.groups = m.labels_
+                    rc_k, variation_coefficients, valid = self.run_group_calculation()
+                    if valid:
+                        break
+
         return rc_k, variation_coefficients
