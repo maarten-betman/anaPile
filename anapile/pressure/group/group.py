@@ -107,7 +107,7 @@ class PileGroupInPlane(PileGroupPlotter):
         pile_calculation=PileCalculationSettlementDriven,
     ):
         super().__init__()
-        self.cpts = cpts
+        self.cpts = np.array(cpts)
         self.coordinates = np.array(list(map(lambda cpt: (cpt.x, cpt.y), cpts)))
         self.layer_tables = layer_tables
         self.pile_calculation_kwargs = pile_calculation_kwargs
@@ -156,7 +156,7 @@ class PileGroupInPlane(PileGroupPlotter):
     def run_group_calculation(self, groups=None):
         """
         Determine the design values of the piles, the variation coefficients,
-        and if this group configuration is allowed
+        and check if this group configuration is allowed
         (variation coefficients should be below 0.12)
 
         Returns
@@ -250,12 +250,18 @@ class PileGroup(PileGroupInPlane):
         layer_tables,
         pile_calculation_kwargs=dict(soil_load=1, pile_load=750),
         pile_calculation=PileCalculationSettlementDriven,
+        pile_load=900,
     ):
         super().__init__(cpts, layer_tables, pile_calculation_kwargs, pile_calculation)
         self.pile_tip_level = None
+        self.pile_load = pile_load
+        self.allowed_depths = None
+        self.proposal_depths_idx_ = None
+        self.rcal = None  # (n_ptl, n_cpts)
+        self.group_depths = np.zeros(len(cpts))
 
     def run_pile_calculations(self, pile_tip_level):
-        self.rcal = np.zeros((len(self.cpts), len(pile_tip_level)))
+        self.rcal = np.zeros((len(pile_tip_level), len(self.cpts)))
         kwargs = self.pile_calculation_kwargs.copy()
         for i in range(len(self.cpts)):
             kwargs["cpt"] = self.cpts[i]
@@ -263,10 +269,84 @@ class PileGroup(PileGroupInPlane):
 
             pc = self.pile_calculation(**kwargs)
             pc.run_calculation(pile_tip_level)
-            self.rcal[i] = (pc.rb_ + pc.rs_ - pc.nk_) * 1000
+            self.rcal[:, i] = (pc.rb_ + pc.rs_ - pc.nk_) * 1000
 
         mean_over_cpt = np.mean(self.rcal, axis=0)
+        assert mean_over_cpt.shape[0] == len(self.cpts)
         self.mape = np.abs(self.rcal - mean_over_cpt) / mean_over_cpt
         self.pile_tip_level = pc.pile_tip_level_
-
+        self.allowed_depths = self.rcal > self.pile_load
+        self.proposal_depths_idx_ = np.argsort(self.allowed_depths.sum(1))[::-1]
         return self.rcal
+
+    def run_group_calculation(self, groups=None):
+        if groups is not None:
+            self.groups = groups
+
+        for g in np.unique(self.groups):
+            mask = self.groups == g
+
+            # no. of cpts in group
+            n = len(self.cpts[mask])
+            xi3 = xi_3[n]
+            xi4 = xi_4[n]
+
+            # rcal values of this group
+            rcal = self.rcal[:, mask]
+
+            r_ck = np.min(
+                np.concatenate(
+                    [
+                        (np.mean(rcal, axis=1) / xi3)[:, None],
+                        (np.min(rcal, axis=1) / xi4)[:, None],
+                    ],
+                    axis=1,
+                ),
+                axis=1,
+            )
+
+            variation_coefficients = stats.variation(rcal, axis=1)
+
+            # find first depth that is valid
+            strength_condition = (r_ck - self.pile_load) > 0
+            variation_condition = variation_coefficients < 0.12
+            cond = strength_condition & variation_condition
+
+            if not np.any(cond):
+                # No solution here
+                return None, None, False
+            idx = np.argmax(cond)
+
+            self.group_depths[mask] = self.pile_tip_level[idx]
+            self.rc_k[mask] = r_ck[idx]
+            self.variation_coefficients[mask] = stats.variation(rcal[idx])
+
+        return (
+            self.rc_k,
+            self.variation_coefficients,
+            self._valid_group_configuration()
+        )
+
+    def optimize(self, seed=1, scale_geometry=3):
+        rc_k, variation_coefficients, valid = self.run_group_calculation()
+
+        x = scale(np.hstack([self.coordinates, self.rcal.T]))
+
+        x[:, :2] = x[:, :2] * scale_geometry * 3
+        n = 1
+        while not valid:
+            n += 1
+            for m in [
+                cluster.KMeans(n),
+                cluster.AgglomerativeClustering(n, linkage="ward"),
+                cluster.AgglomerativeClustering(n, linkage="average"),
+                cluster.AgglomerativeClustering(n, linkage="single"),
+            ]:
+                m.fit(x)
+                self.groups = m.labels_
+                rc_k, variation_coefficients, valid = self.run_group_calculation()
+                if valid:
+                    return rc_k, variation_coefficients, valid
+
+        return rc_k, variation_coefficients, valid
+
