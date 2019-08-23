@@ -56,7 +56,7 @@ class PileGroupTest(TestCase):
         rc_k, variation_coefficients, valid = pg.run_group_calculation()
         self.assertTrue(variation_coefficients.sum() == 0)
         self.assertTrue(valid)
-        pg.plot_overview()
+        pg.plot_overview_in_plane()
         pg.plot_group()
 
     def test_optimization(self):
@@ -73,7 +73,7 @@ class PileGroupTest(TestCase):
         )
         pg.run_pile_calculations(-20)
         rc_k, variation_coefficients, valid = pg.optimize()
-        pg.plot_overview()
+        pg.plot_overview_in_plane()
         self.assertTrue(valid, pg._valid_group_configuration())
         self.assertAlmostEqual(19598.4095, rc_k.sum(), places=3)
         self.assertAlmostEqual(0.7093, variation_coefficients.sum(), places=3)
@@ -97,5 +97,6 @@ class PileGroupTest(TestCase):
         pile_tip_level = np.linspace(-5, max_depth, 15)
         pg.run_pile_calculations(pile_tip_level)
         pg.optimize()
-        pg.plot_group()
+        pg.plot_overview()
+        # pg.plot_group()
 

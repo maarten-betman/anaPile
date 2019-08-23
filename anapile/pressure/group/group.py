@@ -70,7 +70,7 @@ class PileGroupPlotter(BasePlot):
 
         return self._finish_plot(show=show)
 
-    def plot_overview(self, show=True, figsize=(16, 8)):
+    def plot_overview_in_plane(self, show=True, figsize=(16, 8)):
         fig, ax = plt.subplots(1, 2, figsize=figsize)
         plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
         self.plot_group(show=False, voronoi=True, ax=ax[0])
@@ -93,6 +93,63 @@ class PileGroupPlotter(BasePlot):
                 backgroundcolor=self.colors[self.groups[i]],
                 rotation=45,
             )
+        plt.legend()
+        plt.tight_layout(pad=1.5)
+        self._finish_plot(show=show)
+
+    def plot_overview(self, show=True, figsize=(16, 12)):
+        """
+        3D variant
+        Parameters
+        ----------
+        show
+        figsize
+
+        Returns
+        -------
+
+        """
+
+        fig, ax = plt.subplots(2, 2, figsize=figsize)
+        plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
+        self.plot_group(show=False, voronoi=True, ax=ax[0, 0])
+
+        idx = np.argsort(self.groups)
+        rcal_at_depths = self.rcal_at_depths[idx]
+        groups = self.groups[idx]
+        group_depths = self.group_depths[idx]
+        group_depths_idx = self.group_depths_idx[idx]
+
+        idx_ = np.arange(len(self.rcal_at_depths))
+
+        ax[0, 1].scatter(idx, rcal_at_depths)
+        ax[0, 1].plot(
+            [0, len(rcal_at_depths)], np.ones(2) * np.mean(rcal_at_depths), label="Mean $R_{cal}$"
+        )
+        ax[0, 1].set_xticks(idx)
+        ax[0, 1].grid()
+        ax[0, 1].set_ylabel("Rcal [kN]")
+        ax[0, 1].set_xlabel("#")
+
+        for i, v in enumerate(self.mape[group_depths_idx, np.arange(self.mape.shape[1])]):
+            ax[0, 1].text(
+                idx_[i],
+                rcal_at_depths[i],
+                "{:0.2f}".format(v),
+                backgroundcolor=self.colors[groups[i]],
+                rotation=45,
+            )
+
+            ax[1, 1].text(
+                idx_[i],
+                group_depths[i],
+                "{:0.2f}".format(v),
+                backgroundcolor=self.colors[groups[i]],
+                rotation=45,
+            )
+
+        ax[1, 1].scatter(idx, group_depths)
+
         plt.legend()
         plt.tight_layout(pad=1.5)
         self._finish_plot(show=show)
@@ -258,7 +315,11 @@ class PileGroup(PileGroupInPlane):
         self.allowed_depths = None
         self.proposal_depths_idx_ = None
         self.rcal = None  # (n_ptl, n_cpts)
-        self.group_depths = np.zeros(len(cpts))
+        n = len(cpts)
+        self.rcal_at_depths = np.zeros(n)
+        self.group_depths = np.zeros(n)
+        self.group_depths_idx = np.zeros(n, dtype=int)
+        self.mape = np.zeros(n)
 
     def run_pile_calculations(self, pile_tip_level):
         self.rcal = np.zeros((len(pile_tip_level), len(self.cpts)))
@@ -318,8 +379,10 @@ class PileGroup(PileGroupInPlane):
             idx = np.argmax(cond)
 
             self.group_depths[mask] = self.pile_tip_level[idx]
+            self.group_depths_idx[mask] = idx
             self.rc_k[mask] = r_ck[idx]
             self.variation_coefficients[mask] = stats.variation(rcal[idx])
+            self.rcal_at_depths[mask] = rcal[idx]
 
         return (
             self.rc_k,
@@ -332,7 +395,7 @@ class PileGroup(PileGroupInPlane):
 
         x = scale(np.hstack([self.coordinates, self.rcal.T]))
 
-        x[:, :2] = x[:, :2] * scale_geometry * 3
+        x[:, :2] = x[:, :2] * scale_geometry * 2
         n = 1
         while not valid:
             n += 1
