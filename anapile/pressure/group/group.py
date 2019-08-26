@@ -315,11 +315,13 @@ class PileGroup(PileGroupInPlane):
         layer_tables,
         pile_calculation_kwargs=dict(soil_load=1, pile_load=750),
         pile_calculation=PileCalculationSettlementDriven,
-        pile_load=900,
+        pile_load_sls=900,
+        pile_load_uls=1200,
     ):
         super().__init__(cpts, layer_tables, pile_calculation_kwargs, pile_calculation)
         self.pile_tip_level = None
-        self.pile_load = pile_load
+        self.pile_load_sls = pile_load_sls
+        self.pile_load_uls = pile_load_uls
         self.allowed_depths = None
         self.proposal_depths_idx_ = None
         self.rcal = None  # (n_ptl, n_cpts)
@@ -359,7 +361,7 @@ class PileGroup(PileGroupInPlane):
         assert mean_over_cpt.shape[0] == len(self.cpts)
         self.mape = np.abs(self.rcal - mean_over_cpt) / mean_over_cpt
         self.pile_tip_level = pc.pile_tip_level_
-        self.allowed_depths = self.rcal > self.pile_load
+        self.allowed_depths = self.rcal > self.pile_load_uls
         self.proposal_depths_idx_ = np.argsort(self.allowed_depths.sum(1))[::-1]
         return self.rcal
 
@@ -408,7 +410,7 @@ class PileGroup(PileGroupInPlane):
             variation_coefficients = stats.variation(rcal, axis=1)
 
             # find first depth that is valid
-            strength_condition = (r_ck - self.pile_load) > 0
+            strength_condition = (r_ck - self.pile_load_sls) > 0
             variation_condition = variation_coefficients < 0.12
             cond = strength_condition & variation_condition
 
