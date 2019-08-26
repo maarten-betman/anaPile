@@ -8,7 +8,7 @@ import warnings
 WATER_PRESSURE = 0.00981
 
 
-def grain_pressure(depth, gamma_sat, gamma, u=None):
+def grain_pressure(depth, gamma_sat, gamma, u):
     """
     Determine the grain pressure over the depth.
 
@@ -29,10 +29,6 @@ def grain_pressure(depth, gamma_sat, gamma, u=None):
     """
     h = np.diff(depth)
     h = np.r_[depth[0], h]
-    if u is None:
-        u = depth * WATER_PRESSURE
-        u[u < 0] = 0
-
     weights = h * gamma_sat
 
     # correct for soil above water level
