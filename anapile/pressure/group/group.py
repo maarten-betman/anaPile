@@ -27,7 +27,7 @@ class PileGroupPlotter(BasePlot):
         self.mape = None
         self.groups = None
 
-    def plot_group(self, show=True, voronoi=True, figsize=(6, 6), ax=None):
+    def plot_group(self, show=True, voronoi=True, figsize=(6, 6), ax=None, sort_map=None):
         """
 
         Parameters
@@ -40,8 +40,8 @@ class PileGroupPlotter(BasePlot):
             Matplotlib figsize
         ax : matplotlib.axes
             If given plots will be made on this axis.
-        colors : list[str]
-            hex color values, used for group plotting.
+        sort_map : dict[int, int]
+            Resort indexes.
 
         Returns
         -------
@@ -51,6 +51,8 @@ class PileGroupPlotter(BasePlot):
         if ax is None:
             self._create_fig(figsize)
             ax = plt.gca()
+        if sort_map is None:
+            sort_map = defaultdict(lambda x: x)
 
         if voronoi:
             spatial.voronoi_plot_2d(self.vor, ax)
@@ -58,11 +60,12 @@ class PileGroupPlotter(BasePlot):
             ax.plot(self.coordinates[:, 0], self.coordinates[:, 1], "o")
         ax.set_xlabel("x-coordinates")
         ax.set_ylabel("y-coordinates")
+
         for i, p in enumerate(self.coordinates):
             ax.text(
                 p[0],
                 p[1],
-                f"#{i};G{self.groups[i]}",
+                f"#{sort_map[i]};G{self.groups[i]}",
                 fontsize=10,
                 ha="center",
                 backgroundcolor=self.colors[self.groups[i]],
@@ -110,19 +113,22 @@ class PileGroupPlotter(BasePlot):
 
         """
 
-        fig, ax = plt.subplots(2, 2, figsize=figsize)
-        plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
-        self.plot_group(show=False, voronoi=True, ax=ax[0, 0])
-
         idx = np.argsort(self.groups)
+
         rcal_at_depths = self.rcal_at_depths[idx]
         groups = self.groups[idx]
         group_depths = self.group_depths[idx]
         group_depths_idx = self.group_depths_idx[idx]
 
-        idx_ = np.arange(len(self.rcal_at_depths))
+        fig, ax = plt.subplots(2, 2, figsize=figsize)
+        plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
+        # map idx to new sorted idx
+        sort_map = dict(zip(idx, np.arange(len(idx))))
+        self.plot_group(show=False, voronoi=True, ax=ax[0, 0], sort_map=sort_map)
 
-        ax[0, 1].scatter(idx, rcal_at_depths)
+        idx_unsorted = np.arange(len(self.rcal_at_depths))
+
+        ax[0, 1].scatter(idx_unsorted, rcal_at_depths)
         ax[0, 1].plot(
             [0, len(rcal_at_depths)], np.ones(2) * np.mean(rcal_at_depths), label="Mean $R_{cal}$"
         )
@@ -133,7 +139,7 @@ class PileGroupPlotter(BasePlot):
 
         for i, v in enumerate(self.mape[group_depths_idx, np.arange(self.mape.shape[1])]):
             ax[0, 1].text(
-                idx_[i],
+                idx_unsorted[i],
                 rcal_at_depths[i],
                 "{:0.2f}".format(v),
                 backgroundcolor=self.colors[groups[i]],
@@ -141,14 +147,15 @@ class PileGroupPlotter(BasePlot):
             )
 
             ax[1, 1].text(
-                idx_[i],
+                idx_unsorted[i],
                 group_depths[i],
                 "{:0.2f}".format(v),
                 backgroundcolor=self.colors[groups[i]],
                 rotation=45,
             )
 
-        ax[1, 1].scatter(idx, group_depths)
+        ax[1, 1].scatter(idx_unsorted, group_depths)
+        ax[1, 1].set_ylabel("Pile tip level [m NAP]")
 
         plt.legend()
         plt.tight_layout(pad=1.5)
@@ -390,12 +397,12 @@ class PileGroup(PileGroupInPlane):
             self._valid_group_configuration()
         )
 
-    def optimize(self, seed=1, scale_geometry=3):
+    def optimize(self, seed=1, scale_geometry=9):
         rc_k, variation_coefficients, valid = self.run_group_calculation()
 
         x = scale(np.hstack([self.coordinates, self.rcal.T]))
 
-        x[:, :2] = x[:, :2] * scale_geometry * 2
+        x[:, :2] = x[:, :2] * scale_geometry
         n = 1
         while not valid:
             n += 1
