@@ -11,6 +11,7 @@ import matplotlib.colors as mcolors
 import random
 from sklearn import cluster
 from sklearn.preprocessing import scale
+import copy
 
 
 class PileGroupPlotter(BasePlot):
@@ -329,6 +330,21 @@ class PileGroup(PileGroupInPlane):
         self.mape = np.zeros(n)
 
     def run_pile_calculations(self, pile_tip_level):
+        """
+        Run all pile calculations.
+        This needs to be done once, before group configuration can be determined.
+
+        Parameters
+        ----------
+        pile_tip_level : np.array[flt]
+            Pile tip levels w.r.t. NAP
+
+        Returns
+        -------
+        rcal : np.array[flt]
+            Rcal (load bearing capacity) values per cpt-pile-combination.
+
+        """
         self.rcal = np.zeros((len(pile_tip_level), len(self.cpts)))
         kwargs = self.pile_calculation_kwargs.copy()
         for i in range(len(self.cpts)):
@@ -348,6 +364,22 @@ class PileGroup(PileGroupInPlane):
         return self.rcal
 
     def run_group_calculation(self, groups=None):
+        """
+        Given a group configuration determine the validity and the depth of the piles.
+
+        Parameters
+        ----------
+        groups : Union[np.array[int], None]
+            Group configuration. Will be assigned to self.groups.
+             If None given, use self.groups.
+
+        Returns
+        -------
+        solution : tuple[np.array[flt], np.array[flt], bool]
+            (rc_k, variation_coefficients, valid)
+
+            rc_k: Design values of the piles.
+        """
         if groups is not None:
             self.groups = groups
 
@@ -397,26 +429,59 @@ class PileGroup(PileGroupInPlane):
             self._valid_group_configuration()
         )
 
-    def optimize(self, seed=1, scale_geometry=9):
+    def optimize(self, seed=1, scale_geometry=(2., 4., 9.)):
+        """
+        Find a sub-optimal pile group configuration.
+        This isn't a global optimum, but a feasible solution.
+
+        Based on the assumptions that solutions with unique
+        groups are more optimal than solutions with more unique groups.
+        This is reasonable as the factor 1/Xi reduces as the number
+        of CPT's in a group grows.
+
+        Clustering of the piles is based on the (scaled) coordinates
+        and the Rcal values (load bearing capacity) of the pile-cpt-combination.
+        The coordinates are scaled, as the geometry aspect is more decisive in
+        finding a valid grouping.
+
+        Parameters
+        ----------
+        seed : int
+            Random seed passed to K-means algorithm
+        scale_geometry : tuple[flt]
+            Scale the coordinates of the grouping features.
+
+        Returns
+        -------
+        solution : tuple[np.array[flt], np.array[flt], bool]
+            (rc_k, variation_coefficients, valid)
+
+            rc_k: Design values of the piles.
+        """
         rc_k, variation_coefficients, valid = self.run_group_calculation()
 
-        x = scale(np.hstack([self.coordinates, self.rcal.T]))
-
-        x[:, :2] = x[:, :2] * scale_geometry
         n = 1
+        solutions = []
         while not valid:
             n += 1
-            for m in [
-                cluster.KMeans(n),
-                cluster.AgglomerativeClustering(n, linkage="ward"),
-                cluster.AgglomerativeClustering(n, linkage="average"),
-                cluster.AgglomerativeClustering(n, linkage="single"),
-            ]:
-                m.fit(x)
-                self.groups = m.labels_
-                rc_k, variation_coefficients, valid = self.run_group_calculation()
-                if valid:
-                    return rc_k, variation_coefficients, valid
+            for sc in scale_geometry:
+                x = scale(np.hstack([self.coordinates, self.rcal.T]))
+                x[:, :2] = x[:, :2] * sc
+                for m in [
+                    cluster.KMeans(n, random_state=seed),
+                    cluster.AgglomerativeClustering(n, linkage="ward"),
+                    cluster.AgglomerativeClustering(n, linkage="average"),
+                    cluster.AgglomerativeClustering(n, linkage="single"),
+                ]:
+                    m.fit(x)
+                    self.groups = m.labels_
+                    rc_k, variation_coefficients, valid = self.run_group_calculation()
+                    if valid:
+                        # return rc_k, variation_coefficients, valid
+                        solutions.append(copy.deepcopy(self))
 
-        return rc_k, variation_coefficients, valid
-
+            if len(solutions) > 0:
+                # Choose solution with minimal pile depths. Because of NAP this is maximum.
+                sol = solutions[np.argmax(list(map(lambda x: x.group_depths.sum(), solutions)))]
+                self.__dict__ = sol.__dict__
+                return self.rc_k, self.variation_coefficients, True
