@@ -149,13 +149,13 @@ class PileGroupPlotter(BasePlot):
         ax[0, 1].set_xlabel("#")
         ax[0, 1].legend()
 
-        for i, v in enumerate(
-            self.mape[group_depths_idx, np.arange(self.mape.shape[1])]
-        ):
+        mape = np.abs(rcal_at_depths - rcal_at_depths.mean()) / np.mean(rcal_at_depths)
+
+        for i in range(len(self.cpts)):
             ax[0, 1].text(
                 idx_unsorted[i],
                 rcal_at_depths[i],
-                "{:0.2f}".format(v),
+                "{:0.2f}".format(mape[i]),
                 backgroundcolor=self.colors[groups[i]],
                 rotation=45,
             )
@@ -389,9 +389,6 @@ class PileGroup(PileGroupInPlane):
             pc.run_calculation(pile_tip_level)
             self.rcal[:, i] = (pc.rb_ + pc.rs_ - pc.nk_) * 1000
 
-        mean_over_cpt = np.mean(self.rcal, axis=0)
-        assert mean_over_cpt.shape[0] == len(self.cpts)
-        self.mape = np.abs(self.rcal - mean_over_cpt) / mean_over_cpt
         self.pile_tip_level = pc.pile_tip_level_
         self.allowed_depths = self.rcal > self.pile_load_uls
         self.proposal_depths_idx_ = np.argsort(self.allowed_depths.sum(1))[::-1]
