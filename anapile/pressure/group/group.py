@@ -16,7 +16,7 @@ import copy
 
 class PileGroupPlotter(BasePlot):
     # don't wan't succeeding colors to look too much alike
-    colors = list(mcolors.XKCD_COLORS.values())
+    colors = np.array(list(mcolors.XKCD_COLORS.values()))
     random.seed(1)
     random.shuffle(colors)
 
@@ -28,7 +28,9 @@ class PileGroupPlotter(BasePlot):
         self.mape = None
         self.groups = None
 
-    def plot_group(self, show=True, voronoi=True, figsize=(6, 6), ax=None, sort_map=None):
+    def plot_group(
+        self, show=True, voronoi=True, figsize=(6, 6), ax=None, sort_map=None
+    ):
         """
 
         Parameters
@@ -120,25 +122,35 @@ class PileGroupPlotter(BasePlot):
         groups = self.groups[idx]
         group_depths = self.group_depths[idx]
         group_depths_idx = self.group_depths_idx[idx]
+        variation_coefficients = self.variation_coefficients[idx]
+        rc_k = self.rc_k[idx]
 
         fig, ax = plt.subplots(2, 2, figsize=figsize)
         plt.suptitle("N groups: {}".format(np.unique(self.groups).shape[0]))
         # map idx to new sorted idx
         sort_map = dict(zip(idx, np.arange(len(idx))))
+        ax[0, 0].set_title("Group configuration")
         self.plot_group(show=False, voronoi=True, ax=ax[0, 0], sort_map=sort_map)
 
         idx_unsorted = np.arange(len(self.rcal_at_depths))
 
+        ax[0, 1].set_title("Pile capacity $R_{c;cal}$ and MAPE")
         ax[0, 1].scatter(idx_unsorted, rcal_at_depths)
         ax[0, 1].plot(
-            [0, len(rcal_at_depths)], np.ones(2) * np.mean(rcal_at_depths), label="Mean $R_{cal}$"
+            [0, len(rcal_at_depths)],
+            np.ones(2) * np.mean(rcal_at_depths),
+            label="Mean $R_{c;cal}$",
+            lw=2,
         )
         ax[0, 1].set_xticks(idx)
         ax[0, 1].grid()
-        ax[0, 1].set_ylabel("Rcal [kN]")
+        ax[0, 1].set_ylabel("$R_{c;cal}$ [kN]")
         ax[0, 1].set_xlabel("#")
+        ax[0, 1].legend()
 
-        for i, v in enumerate(self.mape[group_depths_idx, np.arange(self.mape.shape[1])]):
+        for i, v in enumerate(
+            self.mape[group_depths_idx, np.arange(self.mape.shape[1])]
+        ):
             ax[0, 1].text(
                 idx_unsorted[i],
                 rcal_at_depths[i],
@@ -150,16 +162,35 @@ class PileGroupPlotter(BasePlot):
             ax[1, 1].text(
                 idx_unsorted[i],
                 group_depths[i],
-                "{:0.2f}".format(v),
+                "{:0.3f}".format(variation_coefficients[i]),
                 backgroundcolor=self.colors[groups[i]],
                 rotation=45,
             )
 
+        ax[1, 1].set_title("Pile tip levels and variation coefficients")
         ax[1, 1].scatter(idx_unsorted, group_depths)
         ax[1, 1].set_ylabel("Pile tip level [m NAP]")
+        ax[1, 1].set_xticks(idx)
+        ax[1, 1].set_ylim(group_depths.min() * 1.03, group_depths.max() * 0.95)
+        ax[1, 1].set_xlabel("#")
+        ax[1, 1].grid()
 
-        plt.legend()
-        plt.tight_layout(pad=1.5)
+        ax[1, 0].set_title("Group capacity $R_{c;k}$")
+        ax[1, 0].scatter(idx_unsorted, rc_k, c=self.colors[groups])
+        ax[1, 0].plot()
+        ax[1, 0].set_ylabel("$R_{c;k}$ [kN]")
+        ax[1, 0].set_xlabel("#")
+        ax[1, 0].plot(
+            [0, len(rcal_at_depths)],
+            np.ones(2) * self.pile_load_uls,
+            label="ULS load",
+            lw=2,
+        )
+        ax[1, 0].set_xticks(idx)
+        ax[1, 0].grid()
+        ax[1, 0].legend()
+
+        # plt.tight_layout(pad=1.5)
         self._finish_plot(show=show)
 
 
@@ -410,7 +441,7 @@ class PileGroup(PileGroupInPlane):
             variation_coefficients = stats.variation(rcal, axis=1)
 
             # find first depth that is valid
-            strength_condition = (r_ck - self.pile_load_sls) > 0
+            strength_condition = (r_ck - self.pile_load_uls) > 0
             variation_condition = variation_coefficients < 0.12
             cond = strength_condition & variation_condition
 
@@ -428,10 +459,10 @@ class PileGroup(PileGroupInPlane):
         return (
             self.rc_k,
             self.variation_coefficients,
-            self._valid_group_configuration()
+            self._valid_group_configuration(),
         )
 
-    def optimize(self, seed=1, scale_geometry=(2., 4., 9.)):
+    def optimize(self, seed=1, scale_geometry=(2.0, 4.0, 9.0)):
         """
         Find a sub-optimal pile group configuration.
         This isn't a global optimum, but a feasible solution.
@@ -484,6 +515,8 @@ class PileGroup(PileGroupInPlane):
 
             if len(solutions) > 0:
                 # Choose solution with minimal pile depths. Because of NAP this is maximum.
-                sol = solutions[np.argmax(list(map(lambda x: x.group_depths.sum(), solutions)))]
+                sol = solutions[
+                    np.argmax(list(map(lambda x: x.group_depths.sum(), solutions)))
+                ]
                 self.__dict__ = sol.__dict__
                 return self.rc_k, self.variation_coefficients, True
