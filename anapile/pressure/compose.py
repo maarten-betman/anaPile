@@ -691,18 +691,20 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         # results
         self.settlement_soil = None
         self.settlement_ptl = None
+        self.u_ = None
 
     def soil_settlement(self, grain_pressure=None):
-        u = geo.soil.estimate_water_pressure(self.cpt, self.merged_soil_properties)[
-            : self._idx_ptl
-        ]
+        if self.u_ is None:
+            self.u_ = geo.soil.estimate_water_pressure(self.cpt, self.merged_soil_properties)[
+                : self._idx_ptl
+            ]
 
         if grain_pressure is None:
             grain_pressure = geo.soil.grain_pressure(
                 self.merged_soil_properties.depth.values[: self._idx_ptl],
                 self.merged_soil_properties.gamma_sat.values[: self._idx_ptl],
                 self.merged_soil_properties.gamma.values[: self._idx_ptl],
-                u,
+                self.u_,
             )
 
         self.settlement_soil = settlement.soil.settlement_over_depth(
