@@ -12,6 +12,7 @@ import random
 from sklearn import cluster
 from sklearn.preprocessing import scale
 import copy
+import logging
 
 
 class PileGroupPlotter(BasePlot):
@@ -497,6 +498,9 @@ class PileGroup(PileGroupInPlane):
         solutions = []
         while not valid:
             n += 1
+            if n > len(self.cpts):
+                logging.info("No solution found for ULS Pile LOAD = {:0.2f} kN".format(float(self.pile_load_uls)))
+                return None, None, False
             for sc in scale_geometry:
                 x = scale(np.hstack([self.coordinates, self.rcal.T]))
                 x[:, :2] = x[:, :2] * sc
