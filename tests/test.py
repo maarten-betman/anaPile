@@ -8,7 +8,7 @@ from functools import partial
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from anapile.pressure.compose import PileCalculationSettlementDriven
+from anapile.pressure.compose import PileCalculationSettlementDriven, PileCalculation
 
 SHOW_PLOTS = True
 
@@ -162,15 +162,34 @@ class Pressure(TestCase):
         area = pile_width ** 2
         d_eq = 1.13 * pile_width
         calc = PileCalculationSettlementDriven(
+            self.gef, d_eq, circum, area, self.layer_table, pile_load=1500, soil_load=10
+        )
+        calc._init_calculation(np.linspace(self.gef.zid, self.gef.df.depth.max()))
+
+    def test_excavation_qc_reduction(self):
+        pile_width = 0.25
+        circum = pile_width * 4
+        area = pile_width ** 2
+        d_eq = 1.13 * pile_width
+        calc = PileCalculation(
             self.gef,
             d_eq,
             circum,
             area,
             self.layer_table,
-            pile_load=1500,
-            soil_load=10,
+            excavation_depth=1.5,
+            excavation_param_t=1.0,
         )
-        calc._init_calculation(np.linspace(self.gef.zid, self.gef.df.depth.max()))
+        # All sand and gravel layers should be reduced
+        mask = (
+            calc.merged_soil_properties[["G", "S", "L", "C", "P"]].values.argmax(1) < 2
+        )
+        self.assertTrue(
+            np.all(
+                self.gef.df.qc[:500][mask[:500]]
+                > calc.merged_soil_properties.qc[:500][mask[:500]]
+            )
+        )
 
 
 class TestSettlementCalculation(TestCase):
@@ -243,7 +262,7 @@ class TestGef2(TestCase):
             self.area,
             self.layer_table,
             pile_load=1000,
-            soil_load=1
+            soil_load=1,
         )
 
     def test_raise_when_no_tipping_point_found(self):

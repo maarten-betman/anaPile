@@ -227,3 +227,15 @@ def negative_friction(
     else:
         h = np.append(h, h[-1])
     return gamma_m * circum * k0_tan_d * h * grain_pressure
+
+
+def reduced_qc_due_to_excavation(qc, grain_pressure, grain_pressure_after, t):
+    return qc * (grain_pressure_after / grain_pressure)**t
+
+
+def grain_pressure_after_excavation(grain_pressure, depth, excavation_depth):
+    idx = np.argmin(np.abs(depth - excavation_depth))
+    gp = grain_pressure - grain_pressure[idx]
+    gp[gp < 0] = 0
+    return gp
+

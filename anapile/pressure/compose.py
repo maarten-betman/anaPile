@@ -7,6 +7,7 @@ import pandas as pd
 from anapile import settlement
 from anapile import geo
 import logging
+import copy
 
 
 class PileCalculation:
@@ -22,6 +23,8 @@ class PileCalculation:
         alpha_p=0.7,
         beta_p=1.0,
         pile_factor_s=1.0,
+        excavation_depth=0,
+        excavation_param_t=1.
     ):
         """
 
@@ -47,8 +50,16 @@ class PileCalculation:
             Beta p factor used in pile tip resistance calculation.
         pile_factor_s : float
             Factor s used in pile tip resistance calculation.
+        excavation_depth : float
+            Soil excavation after the CPT was taken.
+        excavation_param_t : float
+            Used in:
+                q_c;z * (s'_v;z;ontgr / s'_v;z;0) ^ t
+            1 if installation is not low in vibration (niet-trillingsarm) and piles are installed after excavating
+            0.5 if piles have been installed before excavation or installation is low-vibrating (trillingsarm).
+
         """
-        self.cpt = cpt
+        self.cpt = copy.deepcopy(cpt)
         self.d_eq = d_eq
         self.circum = circum
         self.area = area
@@ -85,6 +96,49 @@ class PileCalculation:
         self.rb_ = None
         self.nk_ = None
         self.pile_tip_level_ = None
+
+        if excavation_depth > 0:
+            self._reduce_qc_due_to_excavation(excavation_depth, excavation_param_t)
+
+        # Needs to be after reduction of qc and grain pressure
+        # Overwrite cpt's df, so that there will be one truth
+        self.cpt.df = self.merged_soil_properties
+
+    def _reduce_qc_due_to_excavation(self, excavation_depth, t):
+        """
+        Reduce qc due to excavation.
+        Only for sand and gravel layers.
+
+        Parameters
+        ----------
+        excavation_depth : float
+        t : float
+            Used in:
+                q_c;z * (s'_v;z;ontgr / s'_v;z;0) ^ t
+            1 if installation is not low in vibration (niet-trillingsarm) and piles are installed after excavating
+            0.5 if piles have been installed before excavation or installation is low-vibrating (trillingsarm).
+        """
+        if not {"G", "S", "L", "C", "P"}.issubset(set(self.merged_soil_properties.columns)):
+            raise ValueError("""
+            ["G", "S", "L", "C", "P"] not found in the columns of the layer table. 
+            These are needed for qc reduction""")
+
+        mask_sand_or_gravel = (
+            self.merged_soil_properties[["G", "S", "L", "C", "P"]].values.argmax(1) < 2
+        )
+        gp_after = bearing.grain_pressure_after_excavation(
+            self.merged_soil_properties.grain_pressure.values,
+            self.merged_soil_properties.depth.values,
+            excavation_depth
+        )
+        reduced_qc = bearing.reduced_qc_due_to_excavation(
+            self.merged_soil_properties.qc.values,
+            self.merged_soil_properties.grain_pressure.values,
+            gp_after,
+            t
+        )
+        self.merged_soil_properties.loc[mask_sand_or_gravel, 'qc'] = reduced_qc[mask_sand_or_gravel]
+        self.merged_soil_properties.grain_pressure = gp_after
 
     def _set_ptl(self, pile_tip_level):
         """
@@ -127,9 +181,7 @@ class PileCalculation:
         end_depth = depth_to_nap(self.cpt.df.depth.max() - self.d_eq * 4, self.cpt.zid)
 
         # masking logic with NAP is inverse to logic with depth
-        mask = (
-            (self.pile_tip_level_ < start_depth) | (self.pile_tip_level_ > end_depth)
-        )
+        mask = (self.pile_tip_level_ < start_depth) | (self.pile_tip_level_ > end_depth)
         if mask.sum() < len(self.pile_tip_level_):
             logging.warning(
                 """"Pile tip level input was masked as it is not between (surface_level - 8D) and (cpt_depth - 4D)
@@ -479,6 +531,8 @@ class PileCalculationLowerBound(PileCalculation):
         alpha_p=0.7,
         beta_p=1.0,
         pile_factor_s=1.0,
+        excavation_depth=0,
+        excavation_param_t=1.
     ):
         """
 
@@ -504,18 +558,27 @@ class PileCalculationLowerBound(PileCalculation):
             Beta p factor used in pile tip resistance calculation.
         pile_factor_s : float
             Factor s used in pile tip resistance calculation.
+        excavation_depth : float
+            Soil excavation after the CPT was taken.
+        excavation_param_t : float
+            Used in:
+                q_c;z * (s'_v;z;ontgr / s'_v;z;0) ^ t
+            1 if installation is not low in vibration (niet-trillingsarm) and piles are installed after excavating
+            0.5 if piles have been installed before excavation or installation is low-vibrating (trillingsarm).
         """
         super().__init__(
-            cpt,
-            d_eq,
-            circum,
-            area,
-            layer_table,
-            alpha_s,
-            gamma_m,
-            alpha_p,
-            beta_p,
-            pile_factor_s,
+            cpt=cpt,
+            d_eq=d_eq,
+            circum=circum,
+            area=area,
+            layer_table=layer_table,
+            excavation_depth=excavation_depth,
+            alpha_s=alpha_s,
+            gamma_m=gamma_m,
+            alpha_p=alpha_p,
+            beta_p=beta_p,
+            pile_factor_s=pile_factor_s,
+            excavation_param_t=excavation_param_t
         )
 
     def negative_friction(self, negative_friction_range=None, agg=True):
@@ -627,6 +690,8 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
         alpha_p=0.7,
         beta_p=1.0,
         pile_factor_s=1.0,
+        excavation_depth=0,
+        excavation_param_t=1.
     ):
         """
 
@@ -668,18 +733,27 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
             Beta p factor used in pile tip resistance calculation.
         pile_factor_s : float
             Factor s used in pile tip resistance calculation.
+        excavation_depth : float
+            Soil excavation after the CPT was taken.
+        excavation_param_t : float
+            Used in:
+                q_c;z * (s'_v;z;ontgr / s'_v;z;0) ^ t
+            1 if installation is not low in vibration (niet-trillingsarm) and piles are installed after excavating
+            0.5 if piles have been installed before excavation or installation is low-vibrating (trillingsarm).
         """
         super().__init__(
-            cpt,
-            d_eq,
-            circum,
-            area,
-            layer_table,
-            alpha_s,
-            gamma_m,
-            alpha_p,
-            beta_p,
-            pile_factor_s,
+            cpt=cpt,
+            d_eq=d_eq,
+            circum=circum,
+            area=area,
+            layer_table=layer_table,
+            alpha_s=alpha_s,
+            gamma_m=gamma_m,
+            alpha_p=alpha_p,
+            beta_p=beta_p,
+            pile_factor_s=pile_factor_s,
+            excavation_depth=excavation_depth,
+            excavation_param_t=excavation_param_t
         )
         self.pile_load = pile_load
         self.soil_load = soil_load
@@ -695,9 +769,9 @@ class PileCalculationSettlementDriven(PileCalculationLowerBound):
 
     def soil_settlement(self, grain_pressure=None):
         if self.u_ is None:
-            self.u_ = geo.soil.estimate_water_pressure(self.cpt, self.merged_soil_properties)[
-                : self._idx_ptl
-            ]
+            self.u_ = geo.soil.estimate_water_pressure(
+                self.cpt, self.merged_soil_properties
+            )[: self._idx_ptl]
 
         if grain_pressure is None:
             grain_pressure = geo.soil.grain_pressure(
