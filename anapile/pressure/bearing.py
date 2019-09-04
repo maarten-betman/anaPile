@@ -41,28 +41,32 @@ def compute_pile_tip_resistance(
     d8i = np.argmin(np.abs(d8 - depth))
 
     # range from ppn to 4d
-    qc_range_ppn_4d = qc[ppni : d4i + 1]
+    qc_range_ppn_4d = qc[ppni: d4i + 1]
 
-    # cumulative min from 4d back to ppn
-    qc2_range = np.fmin.accumulate(qc_range_ppn_4d[::-1])[::-1]
+    # Array with average qc for each successive range starting at ptl with bottom increasing to 4d below ptl
+    q1_means = np.cumsum(qc_range_ppn_4d) / np.arange(1, qc_range_ppn_4d.shape[0] + 1)
 
-    # array used for determining the minimal rb-max. The minimal mean of both q1 and q2 are decisive
-    qc_calc = qc2_range + qc_range_ppn_4d
-    qc_calc_mean_range = qc_calc.cumsum() / np.arange(1, qc_calc.shape[0] + 1)
+    # Array with average qc for each successive range from 4d below ptl to ptl. For each point in a range the qc
+    # is smaller than or equal to the qc of the point below
+    q2_means = [sum(np.fmin.accumulate(qc_range_ppn_4d[:n + 1][::-1])) / (n + 1) for n, point in
+                enumerate(qc_range_ppn_4d)]
 
-    # index of the minimal mean of both qc1 and qc2
+    # Array with (q1+q2)/2 for each point between ptl and 4d below ptl
+    q12_means = (q1_means + q2_means) / 2.
+
+    # ending values of qc2 for start of q3
+    q2_endings = [np.fmin.accumulate(qc_range_ppn_4d[:n + 1][::-1])[n] for n, point in enumerate(qc_range_ppn_4d)]
+
+    #  The minimum value of q12 should be taken between 0.7D to 4D below ptl
     di = d07i - ppni
+    q12i = np.argmin(q12_means[di:])
 
-    min_idx = np.argmin(qc_calc_mean_range[di:])
-    idx = min_idx + di if min_idx > 0 else min_idx + di + 1
+    qc1 = q1_means[di:][q12i]
+    qc2 = q2_means[di:][q12i]
 
-    # now the actual mean can be determined
-    qc1 = np.mean(qc_range_ppn_4d[:idx])
-    qc2 = np.mean(qc2_range[:idx])
-
-    # qc3 starts where qc2 is ended and accumulates the minimum again.
-    qc3_range = qc[d8i : ppni + 1].copy()
-    qc3_range[-1] = qc2_range[0]
+    # qc3 starts where qc2 ended.
+    qc3_range = qc[d8i: ppni + 1].copy()
+    qc3_range[-1] = q2_endings[di:][q12i]
     qc3_range = np.fmin.accumulate(qc3_range[::-1])[::-1]
     qc3 = np.mean(qc3_range)
 
