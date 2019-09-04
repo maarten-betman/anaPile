@@ -16,6 +16,7 @@ SHOW_PLOTS = True
 class Pressure(TestCase):
     def setUp(self) -> None:
         self.gef = ParseGEF("files/example.gef")
+        self.gef2 = ParseGEF("files/test_cpt_1.gef")
         self.soil_prop = pd.read_csv("files/soil_prop_example.csv")
         self.layer_table = pd.read_csv("files/layer_table.csv")
 
@@ -48,6 +49,25 @@ class Pressure(TestCase):
         self.assertAlmostEqual(qc_1, 27.960512820512815)
         self.assertAlmostEqual(qc_2, 21.855102564102587)
         self.assertAlmostEqual(qc_3, 21.2664298245614)
+
+    def test_pile_tip_resistance_2(self):
+        f = partial(
+            bearing.compute_pile_tip_resistance,
+            qc=self.gef2.df.qc.values,
+            depth=self.gef2.df.depth.values,
+            d_eq=0.45,
+            alpha=0.7,
+            beta=1,
+            s=1,
+            area=np.pi / 4 * 0.45 ** 2,
+            return_q_components=True,
+        )
+
+        rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef2.zid, -7.5))
+
+        self.assertAlmostEqual(round(qc_1, 7), 4.4421053)
+        self.assertAlmostEqual(round(qc_2, 6), 1.105263)
+        self.assertAlmostEqual(round(qc_3, 6), 0.783784)
 
     def test_sign_tipping(self):
         self.assertEqual(bearing.sign_tipping_idx(np.array([1.0, 0.5, -0.5, -1])), 2)
