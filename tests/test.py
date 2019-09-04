@@ -37,16 +37,16 @@ class Pressure(TestCase):
 
         rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef.zid, -3.5))
 
-        self.assertAlmostEqual(rb, 0.2575636376096491)
-        self.assertAlmostEqual(qc_1, 10.33309298245614)
-        self.assertAlmostEqual(qc_2, 5.92369298245614)
+        self.assertAlmostEqual(rb, 0.2567636564201452)
+        self.assertAlmostEqual(qc_1, 10.258510344827586)
+        self.assertAlmostEqual(qc_2, 5.925134482758623)
         self.assertAlmostEqual(qc_3, 3.645944736842105)
 
         rb, qc_1, qc_2, qc_3 = f(nap_to_depth(self.gef.zid, -12))
 
         self.assertAlmostEqual(rb, 0.9375)
-        self.assertAlmostEqual(qc_1, 27.906636363636366)
-        self.assertAlmostEqual(qc_2, 21.714000000000002)
+        self.assertAlmostEqual(qc_1, 27.960512820512815)
+        self.assertAlmostEqual(qc_2, 21.855102564102587)
         self.assertAlmostEqual(qc_3, 21.2664298245614)
 
     def test_sign_tipping(self):
